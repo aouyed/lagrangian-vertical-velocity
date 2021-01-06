@@ -7,6 +7,19 @@ import metpy.calc
 from metpy.units import units
 import cv2
 
+def quiver_plotter(ds, title):
+
+    ds=ds.coarsen(image_x=25).mean().coarsen(image_y=25).mean()
+    fig, ax = plt.subplots()
+    fig.tight_layout()
+    Q = ax.quiver(ds['image_x'].values, ds['image_y'].values, ds['flow_x'].values, ds['flow_y'].values)
+   
+    ax.set_title('Observed Velocities')
+    plt.savefig(title+'.png', bbox_inches='tight', dpi=300)
+    print('plotted quiver...')
+
+
+
 
 def drop_nan(frame):
     #row_mean = np.nanmean(frame, axis=1)
@@ -51,7 +64,7 @@ def preprocessing():
                            alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
     optical_flow = cv2.optflow.createOptFlow_DeepFlow()
     flowd = optical_flow.calc(nframe0, nframe, None)
-    frame0d=warp_flow(frame0,flowd)
+    frame0d=warp_flow(frame0,flowd.copy())
     dz=frame-frame0d
     pz=frame-frame0
     dz[mask]=np.nan
@@ -59,6 +72,8 @@ def preprocessing():
     dzdt=1000/1800*dz
     pzpt=1000/1800*pz
     
+    ds_s['flow_x']=(('image_y','image_x'),flowd[:,:,0])
+    ds_s['flow_y']=(('image_y','image_x'),flowd[:,:,1])
     ds_s['height_vel']=(('image_y','image_x'),dzdt)
     ds_s['height_tendency']=(('image_y','image_x'),pzpt)
     ds_s['height_tendency'].plot.hist(bins=100)
@@ -71,7 +86,14 @@ def preprocessing():
     ds_s['height_tendency'].plot.imshow(vmin=-2.5, vmax=2.5)
     plt.savefig('height_tendency_map.png')
     plt.close()
-   
+    ds_s['cloud_top_height'].plot.imshow()
+    plt.savefig('cloud_top_height.png')
+    plt.close()
+    ds_s['cloud_top_height_0'].plot.imshow()
+    plt.savefig('cloud_top_height_0.png')
+    plt.close()
+    quiver_plotter(ds_s, 'quiver')
+  
     breakpoint()
     
 def interpolation(): 
