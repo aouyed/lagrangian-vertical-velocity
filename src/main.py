@@ -8,16 +8,19 @@ from metpy.units import units
 import cv2
 from dateutil import parser
 import glob
+from natsort import natsorted
 
-def quiver_plotter(ds, title):
-
+PLOT_PATH='../data/processed/plots/'
+NC_PATH='../data/processed/netcdf/'
+def quiver_plotter(ds, title, date):
+    date=str(date)
     ds=ds.coarsen(image_x=25).mean().coarsen(image_y=25).mean()
     fig, ax = plt.subplots()
     fig.tight_layout()
     Q = ax.quiver(ds['image_x'].values, ds['image_y'].values, ds['flow_x'].values, ds['flow_y'].values)
    
     ax.set_title('Observed Velocities')
-    plt.savefig(title+'.png', bbox_inches='tight', dpi=300)
+    plt.savefig(PLOT_PATH+title+'_'+date+'.png', bbox_inches='tight', dpi=300)
     print('plotted quiver...')
 
 
@@ -46,11 +49,13 @@ def warp_flow(img, flow):
 
 
 def preprocessing():
-    files=glob.glob('../data/G16V04.0.ACTIV*')
+    files=natsorted(glob.glob('../data/raw/01_06/G16V04.0.ACTIV*'))
+    print(files)
     ds_total = xr.Dataset()
     for file in files:
         ds_unit=xr.open_dataset(file)
         date=np.array([parser.parse(ds_unit.processed_date)])
+        print(date)
         ds_unit = ds_unit.expand_dims('time')
         ds_unit = ds_unit.assign_coords(time=date)
         if not ds_total:
@@ -58,23 +63,24 @@ def preprocessing():
         else:
             ds_total = xr.concat([ds_total, ds_unit], 'time')
             # ds_total['image_y']=abs(ds_total['image_y']-800)
-    breakpoint()
     ds_total=ds_total.reindex(image_y=list(reversed(ds_total['image_y'])))
     return ds_total
 
 
-def quick_plotter(ds_unit):
+def quick_plotter(ds_unit, date):
+    date=str(date)
+
     ds_unit['height_vel'].plot.hist(bins=100) 
-    plt.savefig('height_vel.png')
+    plt.savefig(PLOT_PATH+'height_vel_'+date+'.png')
     plt.close()
     ds_unit['height_vel'].plot.imshow(vmin=-2.5, vmax=2.5)
-    plt.savefig('height_vel_map.png')
+    plt.savefig(PLOT_PATH+'height_vel_map_'+date+'.png')
     plt.close()
     ds_unit['height_tendency'].plot.imshow(vmin=-2.5, vmax=2.5)
-    plt.savefig('height_tendency_map.png')
+    plt.savefig(PLOT_PATH+'height_tendency_map_'+date+'.png')
     plt.close()
     ds_unit['cloud_top_height'].plot.imshow(vmin=0,vmax=10)
-    plt.savefig('cloud_top_height.png')
+    plt.savefig(PLOT_PATH+'cloud_top_height._'+date+'.png')
     plt.close()
      
 
@@ -102,7 +108,7 @@ def flow(ds_s):
         nframe = cv2.normalize(src=frame, dst=None,
                            alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
         optical_flow = cv2.optflow.createOptFlow_DeepFlow()
-        flowd = optical_flow.calc(nframe0, nframe, None)
+        flowd = optical_flow.calc(frame0, frame, None)
         frame0d=warp_flow(frame0,flowd.copy())
         dz=frame-frame0d
         pz=frame-frame0
@@ -114,8 +120,11 @@ def flow(ds_s):
         ds_unit['flow_y']=(('image_y','image_x'),flowd[:,:,1])
         ds_unit['height_vel']=(('image_y','image_x'),dzdt)
         ds_unit['height_tendency']=(('image_y','image_x'),pzpt)
-        quick_plotter(ds_unit)  
-        quiver_plotter(ds_unit, 'quiver')
+        frame0=frame
+        nframe0=nframe
+        quick_plotter(ds_unit, date)  
+        quiver_plotter(ds_unit, 'quiver', date)
+    ds_s.to_netcdf(NC_PATH+str(date)+'_output.nc')
     
 def interpolation(): 
     v_function=rgi(points=(1000-ds_m_unit['lev'].values, ds_m_unit['lat'].values, ds_m_unit['lon'].values),values= np.squeeze(ds_m_unit['V'].values),bounds_error=False, fill_value=np.nan)
