@@ -2,3 +2,5 @@
 *.nc4
 *.gif
 *.nc
+*.avi
+^.mp4
