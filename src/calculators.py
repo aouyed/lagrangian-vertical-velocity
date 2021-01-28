@@ -31,11 +31,12 @@ def quiver_plotter(ds, title, date):
     plt.savefig(PLOT_PATH+title+'_'+date+'.png', bbox_inches='tight', dpi=300)
     print('plotted quiver...')
 
-def quiver_hybrid(ds, values, vmin, vmax, date,ax, fig):
-
-    ax, fig, im=implot(ds, values, vmin, vmax, date,ax, fig)
-    ds=ds.coarsen(image_x=25).mean().coarsen(image_y=25).mean()
-    Q = ax.quiver(ds['image_x'].values, ds['image_y'].values, ds['flow_x'].values, ds['flow_y'].values)
+def quiver_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap):
+    #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
+    ax, fig, im=implot(ds, values, vmin, vmax, date,ax, fig, cmap)
+    ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
+    X,Y=np.meshgrid(ds['lon'].values,ds['lat'].values)
+    Q = ax.quiver(X,Y, np.squeeze(ds['flow_x'].values), np.squeeze(ds['flow_y'].values))
     return   ax, fig, im
   
 
@@ -59,7 +60,7 @@ def warp_flow(img, flow):
     flow[:, :, 0] += np.arange(w)
     flow[:, :, 1] += np.arange(h)[:, np.newaxis]
     flow = flow.astype(np.float32)
-    res = cv2.remap(img, flow, None, cv2.INTER_CUBIC)
+    res = cv2.remap(img, flow, None, cv2.INTER_LINEAR)
     return res
 
     
@@ -83,9 +84,11 @@ def quick_plotter(ds_unit, date):
 
 
 
-def implot(ds, values, vmin, vmax, date,ax, fig):
+def implot(ds, values, vmin, vmax, date,ax, fig, cmap):
     pmap = cmocean.cm.haline
-    im = ax.imshow(values, cmap='RdBu', origin='lower', vmin=vmin, vmax=vmax)
+    im = ax.imshow(values, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax, 
+                   extent=[ds['lon'].min().item(),
+                           ds['lon'].max().item(),ds['lat'].min().item(),ds['lat'].max().item()])
     return ax, fig, im
 
 
@@ -104,10 +107,10 @@ def calc(ds_unit, frame0):
      pz[mask]=np.nan
      dzdt=1000/1800*dz
      pzpt=1000/1800*pz
-     ds_unit['flow_x']=(('lat','lon'),flowd[:,:,0])
-     ds_unit['flow_y']=(('lat','lon'),flowd[:,:,1])
-     ds_unit['height_vel']=(('lat','lon'),dzdt)
-     ds_unit['height_tendency']=(('lat','lon'),pzpt)
+     ds_unit['flow_x']=(('time','lat','lon'),np.expand_dims(flowd[:,:,0],axis=0))
+     ds_unit['flow_y']=(('time','lat','lon'),np.expand_dims(flowd[:,:,1],axis=0))
+     ds_unit['height_vel']=(('time','lat','lon'),np.expand_dims(dzdt,axis=0))
+     ds_unit['height_tendency']=(('time','lat','lon'),np.expand_dims(pzpt,axis=0))
      frame0=frame
      nframe0=nframe
      

@@ -13,6 +13,7 @@ from matplotlib import animation
 import calculators as calc
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from celluloid import Camera
+import pandas as pd
 
 PLOT_PATH='../data/processed/plots/'
 NC_PATH='../data/processed/netcdf/'
@@ -41,8 +42,8 @@ def preprocessing():
         ds_unit=xr.open_dataset(file)
         date=ds_unit['time'].values
         print(date)
-        
         ds_unit, frame0=calc.calc(ds_unit,frame0)
+        print(ds_unit)
       
         if not ds_total:
             ds_total = ds_unit
@@ -50,20 +51,20 @@ def preprocessing():
             ds_total = xr.concat([ds_total, ds_unit], 'time')
     #ds_total=ds_total.reindex(image_y=list(reversed(ds_total['image_y'])))
     print(ds_total)
-    ds_total.to_netcdf(NC_PATH+date[0].strftime(DATE_FORMAT)+'_output.nc')
+    date= pd.to_datetime(str(date[0]))
+    ds_total.to_netcdf(NC_PATH+date.strftime(DATE_FORMAT)+'_output.nc')
    
     return ds_total
 
-def plot_loop(ds, var, func, vmin, vmax):
+def plot_loop(ds, var, func, vmin, vmax, cmap):
     fig, ax = plt.subplots(dpi=300)
     camera = Camera(fig)
     dates=ds['time'].values
-    switch=True
     for date in dates:
         print(date)
         ds_unit=ds.sel(time=date)
         #calc.quick_plotter(ds_unit, date)
-        ax, fig, im =func(ds_unit, ds_unit[var].values, vmin,vmax,date, ax, fig)
+        ax, fig, im =func(ds_unit, ds_unit[var].values, vmin,vmax,date, ax, fig, cmap)
         camera.snap()
     cbar=plt.colorbar(im)
     animation = camera.animate()
@@ -71,8 +72,12 @@ def plot_loop(ds, var, func, vmin, vmax):
 def main():
     ds= preprocessing()
     ds=xr.open_dataset(NC_PATH+'01-06-2021-23:38:20_output.nc')
-    plot_loop(ds, flow_var, calc.quiver_hybrid, 230, 290)
-    #plot_loop(ds, 'height_tendency')
+    ds=ds.astype(np.float32)
+    #plot_loop(ds, flow_var, calc.quiver_hybrid, 230, 290,'viridis')
+    plot_loop(ds, 'height_vel', calc.quiver_hybrid, -1, 1,'RdBu')
+    plot_loop(ds, 'height_tendency', calc.quiver_hybrid, -1, 1,'RdBu')
+    #plot_loop(ds, flow_var, calc.quiver_hybrid, 230, 290)
+    p#lot_loop(ds, 'height_tendency')
 
 if __name__ == '__main__':
     main()
