@@ -31,12 +31,28 @@ def quiver_plotter(ds, title, date):
     plt.savefig(PLOT_PATH+title+'_'+date+'.png', bbox_inches='tight', dpi=300)
     print('plotted quiver...')
 
-def quiver_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap):
+def quiver_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
     #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
     ax, fig, im=implot(ds, values, vmin, vmax, date,ax, fig, cmap)
-    ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
+    #ds=ds.coarsen(lat=3, boundary='trim').mean().coarsen(lon=3, boundary='trim').mean()
     X,Y=np.meshgrid(ds['lon'].values,ds['lat'].values)
     Q = ax.quiver(X,Y, np.squeeze(ds['flow_x'].values), np.squeeze(ds['flow_y'].values))
+    return   ax, fig, im
+
+def scatter_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
+    ax, fig, im=implot(ds, values, vmin, vmax, date,ax, fig, cmap)
+    
+    #ds=ds.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
+    df=ds[scatterv].to_dataframe().reset_index().dropna()
+    df=df.loc[df[scatterv]>0]
+    df[scatterv]=1
+    X,Y=df['lon'],df['lat']
+    
+    #df.loc[df[scatterv]<0,scatterv]=-1
+    #df.loc[df[scatterv]>0,scatterv]=1
+    C=df[scatterv]
+    Q=ax.scatter(X,Y,s=20,c=C, marker = 'o', cmap = 'Blues');
+    #Q = ax.quiver(X,Y, np.squeeze(ds['flow_x'].values), np.squeeze(ds['flow_y'].values))
     return   ax, fig, im
   
 
