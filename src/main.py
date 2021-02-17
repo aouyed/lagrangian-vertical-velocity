@@ -26,7 +26,8 @@ def preprocessing():
     files=natsorted(glob.glob('../data/interim/01_06/*'))
     print(len(files))
     ds_unit=xr.open_dataset(files[0]) 
-    ds_unit=ds_unit.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
+    #ds_unit=ds_unit.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
+    ds_unit=ds_unit.rolling(lat=100, center=True).mean().rolling(lon=100, center=True).mean()
     frame0=np.squeeze(ds_unit[flow_var].values)
     frame0=np.nan_to_num(frame0)
     nframe0 = cv2.normalize(src=frame0, dst=None,
@@ -38,7 +39,8 @@ def preprocessing():
     ds_total = xr.Dataset()
     for file in files:
         ds_unit=xr.open_dataset(file)
-        ds_unit=ds_unit.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
+        ds_unit=ds_unit.rolling(lat=100, center=True).mean().rolling(lon=100, center=True).mean()
+        #ds_unit=ds_unit.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
         date=ds_unit['time'].values
         print(date)
         ds_unit, frame0=calc.calc(ds_unit,frame0)
@@ -64,20 +66,42 @@ def plot_loop(ds, var, func, vmin, vmax, cmap,scatterv):
         camera.snap()
     cbar=plt.colorbar(im)
     animation = camera.animate()
-    animation.save(var+'_'+scatterv+'.gif')
+    animation.save(PLOT_PATH+ var+'_'+scatterv+'.gif')
+    
+def post_plots(ds):
+    temp_var='cloud_top_temperature'
+    ds['height_acceleration']=ds['height_vel'].diff('time')/1800
+    ds['height_acceleration_e']=ds['height_tendency'].diff('time')/1800
+    ds['vel_error']=ds['height_vel']-ds['height_tendency']
+    calc.hist2d(ds,PLOT_PATH+ 'veltemp', [temp_var,'height_vel'], [220,290], [-1,1])
+    calc.hist2d(ds, PLOT_PATH+ 'tendtemp', [temp_var,'height_tendency'], [220,290], [-1,1])
+    calc.hist2d(ds, PLOT_PATH+ 'speeddtemp', [temp_var,'speed'], [220,290], [-5,5])
+    calc.hist2d(ds, PLOT_PATH+ 'speedvel', ['height_vel','speed'], [-1,1], [0,5])
+    calc.hist2d(ds, PLOT_PATH+ 'speedtend', ['height_tendency','speed'], [-1,1], [0,5])
+    calc.hist2d(ds, PLOT_PATH+ 'veltend', ['height_tendency','height_vel'], [-0.5,0.5], [-0.25,0.25])
+    
+    calc.hist2d(ds, PLOT_PATH+ 'acctemp', [temp_var,'height_acceleration'], [220,290], [-1e-4,1e-4])
+   
+   # calc.scatter2d(ds, PLOT_PATH+ 'veltemp', [temp_var,'height_vel'], [200,240], [-1,1])
+   # calc.scatter2d(ds,PLOT_PATH+  'tendtemp', [temp_var,'height_tendency'], [200,240], [-1,1])
+   # calc.scatter2d(ds, PLOT_PATH+ 'acctemp', [temp_var,'height_acceleration'], [200,240], [-1e-4,1e-4])
+    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_acceleration')
+    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','vel_error')
+    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_vel')
+    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_tendency')
+    
 def main():
     #ds= preprocessing()
     ds=xr.open_dataset(NC_PATH+'01-06-2021-23:38:20_output.nc')
     ds=ds.astype(np.float32)
     #ds=ds.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
     ds=ds.coarsen(time=3,boundary='trim').mean()
-    ds['height_acceleration']=ds['height_vel'].diff('time')/1800
-    ds['height_acceleration_e']=ds['height_tendency'].diff('time')/1800
-    ds['vel_error']=ds['height_vel']-ds['height_tendency']
-    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_acceleration')
-    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','vel_error')
-    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_vel')
-    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_tendency')
+    ds['speed']=np.sqrt(ds['u']**2+ds['v']**2)
+    speed=ds['speed'].values
+    print(speed[speed<0])
+    post_plots(ds)
+    
+    
     
     #plot_loop(ds, 'height_acceleration', calc.quiver_hybrid, -0.0001, 0.0001,'RdBu')
     #plot_loop(ds, 'height_acceleration_e', calc.quiver_hybrid, -0.0001, 0.0001,'RdBu')

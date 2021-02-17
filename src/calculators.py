@@ -12,6 +12,13 @@ from natsort import natsorted
 import io
 import cmocean
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
+import metpy.calc as mpcalc
+from metpy.units import units
+
+
+
+GRID=0.018
+R = 6371000
 
 
 PLOT_PATH='../data/processed/plots/'
@@ -42,7 +49,7 @@ def quiver_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
 def scatter_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
     ax, fig, im=implot(ds, values, vmin, vmax, date,ax, fig, cmap)
     
-    #ds=ds.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
+    ds=ds.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
     df=ds[scatterv].to_dataframe().reset_index().dropna()
     df=df.loc[df[scatterv]>0]
     df[scatterv]=1
@@ -123,15 +130,39 @@ def calc(ds_unit, frame0):
      pz[mask]=np.nan
      dzdt=1000/1800*dz
      pzpt=1000/1800*pz
+     
      ds_unit['flow_x']=(('time','lat','lon'),np.expand_dims(flowd[:,:,0],axis=0))
      ds_unit['flow_y']=(('time','lat','lon'),np.expand_dims(flowd[:,:,1],axis=0))
+     ds_unit=wind_calculator(ds_unit)
      ds_unit['height_vel']=(('time','lat','lon'),np.expand_dims(dzdt,axis=0))
      ds_unit['height_tendency']=(('time','lat','lon'),np.expand_dims(pzpt,axis=0))
      frame0=frame
      nframe0=nframe
      
      return ds_unit, frame0
+ 
+
+def wind_calculator(ds):
+    flow_x=np.squeeze(ds['flow_x'].values)
+    flow_y=np.squeeze(ds['flow_y'].values)
+    lon,lat=np.meshgrid(ds['lon'].values,ds['lat'].values)
+    dthetax = GRID*flow_x
+    dradsx = dthetax * np.pi / 180
+    lat = lat*np.pi/180
+    dx = R*abs(np.cos(lat))*dradsx
+    u= dx/1800
     
+    dthetay =GRID*flow_y
+    dradsy = dthetay * np.pi / 180
+    dy = R*dradsy
+    v= dy/1800
+    
+    ds['u']=(('time','lat','lon'),np.expand_dims(u,axis=0))
+    ds['v']=(('time','lat','lon'),np.expand_dims(v,axis=0))
+    return ds
+
+
+    return ds
     
 def interpolation(): 
     v_function=rgi(points=(1000-ds_m_unit['lev'].values, ds_m_unit['lat'].values, ds_m_unit['lon'].values),values= np.squeeze(ds_m_unit['V'].values),bounds_error=False, fill_value=np.nan)
@@ -158,4 +189,45 @@ def interpolation():
     df=df.set_index(['image_x', 'image_y'])
     ds_inter=xr.Dataset.from_dataframe(df)
     return ds_inter
+
+def scatter2d(ds, title, label, xedges, yedges):
+    print('scattering...')
+    fig, ax = plt.subplots()
+    df=ds.to_dataframe().reset_index().dropna()
+    df=df[label]
+    X=df[label[0]]
+    Y=df[label[1]]
+    ax.scatter(X,Y, marker = 'o')
+    plt.savefig(title+'_scatter2d.png', dpi=300)
+    
+def hist2d(ds, title, label, xedges, yedges):
+    print('2dhistogramming..')
+
+    bins = 100
+    xbins = np.linspace(xedges[0], xedges[1], bins+1)
+    ybins = np.linspace(yedges[0], yedges[1], bins+1)
+    # labelds = label.copy()
+    # labelds.append('cos_weight')
+    df = ds.to_dataframe().reset_index().dropna()
+    df = df[label]
+    df = df.astype(np.float32)
+    #df = df.loc[df[label[0]] != 0]
+    img, x_edges, y_edges = np.histogram2d(df[label[0]].values, df[label[1]].values, bins=[
+                               xbins, ybins])
+    img=img.T
+    #if 'speed' in label:
+    #    breakpoint()
+    extent = [x_edges[0], x_edges[-1], y_edges[0], y_edges[-1]]
+    fig, ax = plt.subplots()
+
+    im = ax.imshow(img, origin='lower',
+                   cmap='CMRmap_r', aspect='auto', extent=extent)
+
+    cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.04)
+    plt.xlabel(label[0])
+    plt.ylabel(label[1])
+    plt.tight_layout()
+
+    plt.savefig(title+'_his2d.png', dpi=300)
+    plt.close()
 
