@@ -69,10 +69,17 @@ def plot_loop(ds, var, func, vmin, vmax, cmap,scatterv):
     animation.save(PLOT_PATH+ var+'_'+scatterv+'.gif')
     
 def post_plots(ds):
+    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_vel')
+    plot_loop(ds, 'cloud_top_temperature', calc.scatter_hybrid, 230, 290,'viridis','height_vel')
+    plot_loop(ds, 'cloud_top_height', calc.scatter_hybrid, 0, 5,'viridis','height_vel')
+    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_acceleration')
+    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','vel_error')
+
+    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_tendency')
     temp_var='cloud_top_temperature'
-    ds['height_acceleration']=ds['height_vel'].diff('time')/1800
-    ds['height_acceleration_e']=ds['height_tendency'].diff('time')/1800
+    ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
     ds['vel_error']=ds['height_vel']-ds['height_tendency']
+    calc.hist2d(ds, PLOT_PATH+ 'velheight', ['cloud_top_height','height_vel'], [0,10], [-0.25,0.25])
     calc.hist2d(ds,PLOT_PATH+ 'veltemp', [temp_var,'height_vel'], [220,290], [-1,1])
     calc.hist2d(ds, PLOT_PATH+ 'tendtemp', [temp_var,'height_tendency'], [220,290], [-1,1])
     calc.hist2d(ds, PLOT_PATH+ 'speeddtemp', [temp_var,'speed'], [220,290], [-5,5])
@@ -81,27 +88,34 @@ def post_plots(ds):
     calc.hist2d(ds, PLOT_PATH+ 'veltend', ['height_tendency','height_vel'], [-0.5,0.5], [-0.25,0.25])
     
     calc.hist2d(ds, PLOT_PATH+ 'acctemp', [temp_var,'height_acceleration'], [220,290], [-1e-4,1e-4])
-   
-   # calc.scatter2d(ds, PLOT_PATH+ 'veltemp', [temp_var,'height_vel'], [200,240], [-1,1])
-   # calc.scatter2d(ds,PLOT_PATH+  'tendtemp', [temp_var,'height_tendency'], [200,240], [-1,1])
-   # calc.scatter2d(ds, PLOT_PATH+ 'acctemp', [temp_var,'height_acceleration'], [200,240], [-1e-4,1e-4])
-    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_acceleration')
-    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','vel_error')
-    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_vel')
-    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_tendency')
+
+    calc.scatter2d(ds, PLOT_PATH+ 'veltemp', [temp_var,'height_vel'], [200,240], [-1,1])
+    calc.scatter2d(ds, PLOT_PATH+ 'velheight', ['cloud_top_height','height_vel'], [200,240], [-1,1])
+    calc.scatter2d(ds,PLOT_PATH+  'tendtemp', [temp_var,'height_tendency'], [200,240], [-1,1])
+    calc.scatter2d(ds,PLOT_PATH+  'tendheight', ['cloud_top_height','height_tendency'], [200,240], [-1,1])
+    calc.scatter2d(ds, PLOT_PATH+ 'acctemp', [temp_var,'height_acceleration'], [200,240], [-1e-4,1e-4])
+    calc.scatter2d(ds, PLOT_PATH+ 'speedheight', ['cloud_top_height','speed'], [200,240], [-1e-4,1e-4])
+    calc.scatter2d(ds, PLOT_PATH+ 'speedvel', ['speed','height_vel'], [200,240], [-1e-4,1e-4])
+    calc.scatter2d(ds, PLOT_PATH+ 'speedtend', ['speed','height_tendency'], [200,240], [-1e-4,1e-4])
+    calc.scatter2d(ds, PLOT_PATH+ 'moistvel', ['belwp','height_vel'], [200,240], [-1e-4,1e-4])
+    calc.scatter2d(ds, PLOT_PATH+ 'moistheight', ['belwp','cloud_top_height'], [200,240], [-1e-4,1e-4])
+
     
 def main():
     #ds= preprocessing()
     ds=xr.open_dataset(NC_PATH+'01-06-2021-23:38:20_output.nc')
     ds=ds.astype(np.float32)
+    print(ds['time'].values)
+
     #ds=ds.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
     ds=ds.coarsen(time=3,boundary='trim').mean()
     ds['speed']=np.sqrt(ds['u']**2+ds['v']**2)
-    speed=ds['speed'].values
-    print(speed[speed<0])
+    print(ds['speed'].mean())
+    ds['height_acceleration']=ds['height_vel'].diff('time')/1800
+    ds['height_acceleration_e']=ds['height_tendency'].diff('time')/1800    
+
     post_plots(ds)
-    
-    
+
     
     #plot_loop(ds, 'height_acceleration', calc.quiver_hybrid, -0.0001, 0.0001,'RdBu')
     #plot_loop(ds, 'height_acceleration_e', calc.quiver_hybrid, -0.0001, 0.0001,'RdBu')

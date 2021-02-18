@@ -54,11 +54,12 @@ def scatter_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
     df=df.loc[df[scatterv]>0]
     df[scatterv]=1
     X,Y=df['lon'],df['lat']
+
     
     #df.loc[df[scatterv]<0,scatterv]=-1
     #df.loc[df[scatterv]>0,scatterv]=1
     C=df[scatterv]
-    Q=ax.scatter(X,Y,s=20,c=C, marker = 'o', cmap = 'Blues');
+    Q=ax.scatter(X,Y,s=20,c=C, marker = 'o', cmap = 'gray');
     #Q = ax.quiver(X,Y, np.squeeze(ds['flow_x'].values), np.squeeze(ds['flow_y'].values))
     return   ax, fig, im
   
@@ -197,7 +198,9 @@ def scatter2d(ds, title, label, xedges, yedges):
     df=df[label]
     X=df[label[0]]
     Y=df[label[1]]
-    ax.scatter(X,Y, marker = 'o')
+    ax.scatter(X,Y, marker = 'o', facecolors='none', edgecolors='r')
+    plt.xlabel(label[0])
+    plt.ylabel(label[1])
     plt.savefig(title+'_scatter2d.png', dpi=300)
     
 def hist2d(ds, title, label, xedges, yedges):
@@ -212,6 +215,7 @@ def hist2d(ds, title, label, xedges, yedges):
     df = df[label]
     df = df.astype(np.float32)
     #df = df.loc[df[label[0]] != 0]
+    
     img, x_edges, y_edges = np.histogram2d(df[label[0]].values, df[label[1]].values, bins=[
                                xbins, ybins])
     img=img.T
