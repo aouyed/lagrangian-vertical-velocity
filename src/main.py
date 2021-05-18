@@ -26,8 +26,6 @@ def preprocessing():
     files=natsorted(glob.glob('../data/interim/01_06/*'))
     print(len(files))
     ds_unit=xr.open_dataset(files[0]) 
-    #ds_unit=ds_unit.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
-    ds_unit=ds_unit.rolling(lat=100, center=True).mean().rolling(lon=100, center=True).mean()
     frame0=np.squeeze(ds_unit[flow_var].values)
     frame0=np.nan_to_num(frame0)
     nframe0 = cv2.normalize(src=frame0, dst=None,
@@ -39,11 +37,9 @@ def preprocessing():
     ds_total = xr.Dataset()
     for file in files:
         ds_unit=xr.open_dataset(file)
-        ds_unit=ds_unit.rolling(lat=100, center=True).mean().rolling(lon=100, center=True).mean()
-        #ds_unit=ds_unit.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
         date=ds_unit['time'].values
         print(date)
-        ds_unit, frame0=calc.calc(ds_unit,frame0)
+        ds_unit, frame0=calc.calc(ds_unit,frame0,nframe0)
         print(ds_unit)
       
         if not ds_total:
@@ -73,7 +69,7 @@ def post_plots(ds):
     plot_loop(ds, 'cloud_top_temperature', calc.scatter_hybrid, 230, 290,'viridis','height_vel')
     plot_loop(ds, 'cloud_top_height', calc.scatter_hybrid, 0, 5,'viridis','height_vel')
     plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_acceleration')
-    plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','vel_error')
+    #plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','vel_error')
 
     plot_loop(ds, 'temperature_ir', calc.scatter_hybrid, 230, 290,'viridis','height_tendency')
     temp_var='cloud_top_temperature'
@@ -90,15 +86,15 @@ def post_plots(ds):
     calc.hist2d(ds, PLOT_PATH+ 'acctemp', [temp_var,'height_acceleration'], [220,290], [-1e-4,1e-4])
 
     calc.scatter2d(ds, PLOT_PATH+ 'veltemp', [temp_var,'height_vel'], [200,240], [-1,1])
-    calc.scatter2d(ds, PLOT_PATH+ 'velheight', ['cloud_top_height','height_vel'], [200,240], [-1,1])
-    calc.scatter2d(ds,PLOT_PATH+  'tendtemp', [temp_var,'height_tendency'], [200,240], [-1,1])
+    calc.scatter2d(ds, PLOT_PATH+ 'velheight', ['cloud_top_height','height_vel'], [200,240], [-10,10])
+    calc.scatter2d(ds,PLOT_PATH+  'tendtemp', [temp_var,'height_tendency'], [200,240], [-10,10])
     calc.scatter2d(ds,PLOT_PATH+  'tendheight', ['cloud_top_height','height_tendency'], [200,240], [-1,1])
     calc.scatter2d(ds, PLOT_PATH+ 'acctemp', [temp_var,'height_acceleration'], [200,240], [-1e-4,1e-4])
     calc.scatter2d(ds, PLOT_PATH+ 'speedheight', ['cloud_top_height','speed'], [200,240], [-1e-4,1e-4])
     calc.scatter2d(ds, PLOT_PATH+ 'speedvel', ['speed','height_vel'], [200,240], [-1e-4,1e-4])
     calc.scatter2d(ds, PLOT_PATH+ 'speedtend', ['speed','height_tendency'], [200,240], [-1e-4,1e-4])
-    calc.scatter2d(ds, PLOT_PATH+ 'moistvel', ['belwp','height_vel'], [200,240], [-1e-4,1e-4])
-    calc.scatter2d(ds, PLOT_PATH+ 'moistheight', ['belwp','cloud_top_height'], [200,240], [-1e-4,1e-4])
+    calc.scatter2d(ds, PLOT_PATH+ 'moistvel', ['belwp','height_vel'], [200,240], [-10,10])
+    calc.scatter2d(ds, PLOT_PATH+ 'moistheight', ['belwp','cloud_top_height'], [200,240], [-10,10])
 
     
 def main():
@@ -119,8 +115,9 @@ def main():
     
     #plot_loop(ds, 'height_acceleration', calc.quiver_hybrid, -0.0001, 0.0001,'RdBu')
     #plot_loop(ds, 'height_acceleration_e', calc.quiver_hybrid, -0.0001, 0.0001,'RdBu')
-    #plot_loop(ds, 'height_vel', calc.quiver_hybrid, -1, 1,'RdBu')
-    #plot_loop(ds, 'height_tendency', calc.quiver_hybrid, -1,1,'RdBu')
+    plot_loop(ds, 'temperature_ir', calc.quiver_hybrid, 220, 290,'viridis','_an')
+    plot_loop(ds, 'height_vel', calc.quiver_hybrid, -1, 1,'RdBu','height_vel_an')
+    plot_loop(ds, 'height_tendency', calc.quiver_hybrid, -1,1,'RdBu', 'height_tendency_an')
     
 
 if __name__ == '__main__':

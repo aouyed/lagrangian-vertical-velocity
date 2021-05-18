@@ -14,7 +14,7 @@ import cmocean
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import metpy.calc as mpcalc
 from metpy.units import units
-
+import main
 
 
 GRID=0.018
@@ -23,7 +23,7 @@ R = 6371000
 
 PLOT_PATH='../data/processed/plots/'
 NC_PATH='../data/processed/netcdf/'
-flow_var='cloud_top_height'
+flow_var=main.flow_var
 DATE_FORMAT="%m/%d/%Y, %H:%M:%S"
 
 def quiver_plotter(ds, title, date):
@@ -39,7 +39,7 @@ def quiver_plotter(ds, title, date):
     print('plotted quiver...')
 
 def quiver_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
-    #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
+    ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
     ax, fig, im=implot(ds, values, vmin, vmax, date,ax, fig, cmap)
     #ds=ds.coarsen(lat=3, boundary='trim').mean().coarsen(lon=3, boundary='trim').mean()
     X,Y=np.meshgrid(ds['lon'].values,ds['lat'].values)
@@ -87,7 +87,15 @@ def warp_flow(img, flow):
     res = cv2.remap(img, flow, None, cv2.INTER_LINEAR)
     return res
 
-    
+def warp_flow0(img, flow):
+    h, w = flow.shape[:2]
+    flow = -flow
+    flow = flow.astype(np.float32)
+    R2 = np.dstack(np.meshgrid(np.arange(w), np.arange(h)))
+    pixel_map = R2 - 10*flow
+    pixel_map=pixel_map.astype(np.float32)
+    res = cv2.remap(img, pixel_map, None, cv2.INTER_LINEAR)
+    return res    
 
 def quick_plotter(ds_unit, date):
     date=date.strftime(DATE_FORMAT)
@@ -108,6 +116,24 @@ def quick_plotter(ds_unit, date):
 
 
 
+def map_plotter(ds, title, label, units_label=''):
+    values=np.squeeze(ds[label].values)
+    print('frame shape')
+    print(values.shape)
+    fig, ax = plt.subplots()
+    im = ax.imshow(values, cmap='viridis', extent=[ds['lon'].min(
+        ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()])
+    cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.04)
+    cbar.set_label(units_label)
+    plt.xlabel("lon")
+    plt.ylabel("lat")
+    plt.savefig('../data/processed/plots/'+title+'.png',
+                bbox_inches='tight', dpi=300)
+    plt.title(label)
+    plt.show()
+    plt.close()  
+
+
 def implot(ds, values, vmin, vmax, date,ax, fig, cmap):
     pmap = cmocean.cm.haline
     im = ax.imshow(values, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax, 
@@ -116,17 +142,22 @@ def implot(ds, values, vmin, vmax, date,ax, fig, cmap):
     return ax, fig, im
 
 
-def calc(ds_unit, frame0):
+def calc(ds_unit, frame0, nframe0):
      frame=np.squeeze(ds_unit[flow_var].values)
      mask=np.isnan(frame)
      frame=np.nan_to_num(frame)
      nframe = cv2.normalize(src=frame, dst=None,
                             alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
+     #need to test this 
      optical_flow = cv2.optflow.createOptFlow_DeepFlow()
      flowd = optical_flow.calc(frame0, frame, None)
-     frame0d=warp_flow(frame0,flowd.copy())
+     
+     # ####
+     print('mean error:')
+     frame0d=warp_flow(frame0.copy(),flowd.copy())
      dz=frame-frame0d
      pz=frame-frame0
+     print(np.mean(abs(frame0-frame0d)))
      dz[mask]=np.nan
      pz[mask]=np.nan
      dzdt=1000/1800*dz
@@ -135,8 +166,16 @@ def calc(ds_unit, frame0):
      ds_unit['flow_x']=(('time','lat','lon'),np.expand_dims(flowd[:,:,0],axis=0))
      ds_unit['flow_y']=(('time','lat','lon'),np.expand_dims(flowd[:,:,1],axis=0))
      ds_unit=wind_calculator(ds_unit)
-     ds_unit['height_vel']=(('time','lat','lon'),np.expand_dims(dzdt,axis=0))
      ds_unit['height_tendency']=(('time','lat','lon'),np.expand_dims(pzpt,axis=0))
+     ds_unit['height_vel']=(('time','lat','lon'),np.expand_dims(dzdt,axis=0))
+     ds_unit['frame0']=(('time','lat','lon'),np.expand_dims(frame0,axis=0))
+     ds_unit['frame0d']=(('time','lat','lon'),np.expand_dims(frame0d,axis=0))
+     print('frame0')
+     map_plotter(ds_unit, 'frame0', 'frame0')
+     print('frame0d')
+     map_plotter(ds_unit, 'frame0d', 'frame0d')
+     map_plotter(ds_unit, flow_var, flow_var)
+
      frame0=frame
      nframe0=nframe
      
@@ -201,6 +240,7 @@ def scatter2d(ds, title, label, xedges, yedges):
     ax.scatter(X,Y, marker = 'o', facecolors='none', edgecolors='r')
     plt.xlabel(label[0])
     plt.ylabel(label[1])
+    plt.ylim(yedges)
     plt.savefig(title+'_scatter2d.png', dpi=300)
     
 def hist2d(ds, title, label, xedges, yedges):
