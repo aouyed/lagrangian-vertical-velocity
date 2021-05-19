@@ -26,7 +26,7 @@ for file in files:
     new_lon = np.arange(lonmin, lonmax, 0.018)    
     ds_out = xr.Dataset({'lat': (['lat'], new_lat), 'lon': ('lon', new_lon), })
     regridder = xe.Regridder(ds, ds_out, 'bilinear',reuse_weights=True)
-    dr_out = regridder(ds[['temperature_ir','cloud_top_height','cloud_top_temperature','belwp']])
+    dr_out = regridder(ds[['temperature_ir','cloud_top_height','cloud_top_temperature','belwp','cloud_top_pressure']])
     date=np.array([parser.parse(ds.processed_date).replace(tzinfo=None)])
     dr_out = dr_out.expand_dims('time')
     dr_out = dr_out.assign_coords(time=date)

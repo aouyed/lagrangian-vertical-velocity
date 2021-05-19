@@ -205,9 +205,7 @@ def wind_calculator(ds):
     return ds
     
 def interpolation(): 
-    v_function=rgi(points=(1000-ds_m_unit['lev'].values, ds_m_unit['lat'].values, ds_m_unit['lon'].values),values= np.squeeze(ds_m_unit['V'].values),bounds_error=False, fill_value=np.nan)
-    u_function=rgi(points=(1000-ds_m_unit['lev'].values, ds_m_unit['lat'].values, ds_m_unit['lon'].values),values= np.squeeze(ds_m_unit['U'].values),bounds_error=False, fill_value=np.nan)
-    t_function=rgi(points=(1000-ds_m_unit['lev'].values, ds_m_unit['lat'].values, ds_m_unit['lon'].values),values= np.squeeze(ds_m_unit['T'].values),bounds_error=False, fill_value=np.nan)
+    t_function=rgi(points=(ds_m['levels'].values, ds_m['latitude'].values, ds_m_unit['longitude'].values),values= np.squeeze(ds_m_unit['T'].values),bounds_error=False, fill_value=np.nan)
     omega_function=rgi(points=(1000-ds_m_unit['lev'].values, ds_m_unit['lat'].values, ds_m_unit['lon'].values),values= np.squeeze(ds_m_unit['OMEGA'].values),bounds_error=False, fill_value=np.nan)
 
     df=ds_s[['cloud_top_pressure','cloud_top_height','cloud_top_height_0']].to_dataframe().reset_index()
