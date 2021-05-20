@@ -15,6 +15,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import metpy.calc as mpcalc
 from metpy.units import units
 import main
+import metpy
 
 
 GRID=0.018
@@ -204,28 +205,30 @@ def wind_calculator(ds):
 
     return ds
     
-def interpolation(): 
-    t_function=rgi(points=(ds_m['levels'].values, ds_m['latitude'].values, ds_m_unit['longitude'].values),values= np.squeeze(ds_m_unit['T'].values),bounds_error=False, fill_value=np.nan)
-    omega_function=rgi(points=(1000-ds_m_unit['lev'].values, ds_m_unit['lat'].values, ds_m_unit['lon'].values),values= np.squeeze(ds_m_unit['OMEGA'].values),bounds_error=False, fill_value=np.nan)
-
-    df=ds_s[['cloud_top_pressure','cloud_top_height','cloud_top_height_0']].to_dataframe().reset_index()
-    df['cloud_top_pressure']=1000-df['cloud_top_pressure']
-    df['cloud_top_height']=1000*df['cloud_top_height']
-    df['cloud_top_height_0']=1000*df['cloud_top_height_0']
+def interpolation(ds_s,ds_m): 
+    print('interpolating...')
+    print(ds_s['cloud_top_pressure'].max())
+    print(ds_m['w'])
+    t_function=rgi(points=(ds_m['level'].values, ds_m['latitude'].values, 
+                           ds_m['longitude'].values),values= np.squeeze(ds_m['t'].values),
+                   bounds_error=False, fill_value=np.nan)
+    omega_function=rgi(points=(ds_m['level'].values, 
+                               ds_m['latitude'].values, ds_m['longitude'].values),
+                       values= np.squeeze(ds_m['w'].values),bounds_error=False, 
+                       fill_value=np.nan)
+    df=ds_s[['cloud_top_pressure','cloud_top_height']].to_dataframe().reset_index()
     print(df['cloud_top_pressure'].max())
-    df['u']=u_function(df[['cloud_top_pressure','latitude', 'longitude']].values)
-    df['v']=v_function(df[['cloud_top_pressure','latitude', 'longitude']].values)
-    df['omega']=omega_function(df[['cloud_top_pressure','latitude', 'longitude']].values)
-    df['t']=t_function(df[['cloud_top_pressure','latitude', 'longitude']].values)
+    df['omega']=omega_function(df[['cloud_top_pressure','lat', 'lon']].values)
+    df['t']=t_function(df[['cloud_top_pressure','lat', 'lon']].values)
 
     omega=df['omega'].to_numpy()*units('Pa/s')
     pressure=df['cloud_top_pressure'].to_numpy()*units('hPa')
     t=df['t'].to_numpy()*units('K')
     df['w']=metpy.calc.vertical_velocity(omega, pressure, t )
-
-    df['cloud_top_pressure']=-df['cloud_top_pressure']+1000
-    df=df.set_index(['image_x', 'image_y'])
+    df=df.set_index(['lat', 'lon','time'])
+    df=df.dropna()
     ds_inter=xr.Dataset.from_dataframe(df)
+    print(ds_inter)
     return ds_inter
 
 def scatter2d(ds, title, label, xedges, yedges):
