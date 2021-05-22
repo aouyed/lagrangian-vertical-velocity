@@ -7,7 +7,7 @@ c.retrieve(
     {
         'product_type': 'reanalysis',
         'format': 'netcdf',
-        'variable': ['vertical_velocity','temperature',],
+        'variable': ['vertical_velocity','temperature','u_component_of_wind', 'v_component_of_wind',],
         'pressure_level': [
             '1', '2', '3',
             '5', '7', '10',
@@ -37,4 +37,4 @@ c.retrieve(
             '21:00', '22:00', '23:00',
         ],
     },
-    'omega_T_01_06_21.nc')
+    'omega_T_U_V_01_06_21.nc')

@@ -17,7 +17,7 @@ import pandas as pd
 
 PLOT_PATH='../data/processed/plots/'
 NC_PATH='../data/processed/netcdf/'
-flow_var='temperature_ir'
+flow_var='cloud_top_pressure'
 DATE_FORMAT="%m-%d-%Y-%H:%M:%S"
 
 
@@ -30,7 +30,8 @@ def preprocessing():
     frame0=np.nan_to_num(frame0)
     nframe0 = cv2.normalize(src=frame0, dst=None,
                             alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
-    
+    height0=np.squeeze(ds_unit['cloud_top_height'].values)
+    pressure0=np.squeeze(ds_unit['cloud_top_pressure'].values)
     files.pop(0)
     print(len(files))
  
@@ -39,7 +40,7 @@ def preprocessing():
         ds_unit=xr.open_dataset(file)
         date=ds_unit['time'].values
         print(date)
-        #ds_unit, frame0=calc.calc(ds_unit,frame0,nframe0)
+        ds_unit, frame0, height0, pressure0 =calc.calc(ds_unit,frame0,nframe0, height0, pressure0)
         print(ds_unit)
       
         if not ds_total:
@@ -47,7 +48,7 @@ def preprocessing():
         else:
             ds_total = xr.concat([ds_total, ds_unit], 'time')
     date= pd.to_datetime(str(date[0]))
-    ds_total.to_netcdf(NC_PATH+'pressure_output.nc')
+    ds_total.to_netcdf(NC_PATH+'january_output.nc')
    
     return ds_total
 
@@ -66,7 +67,10 @@ def plot_loop(ds, var, func, vmin, vmax, cmap,scatterv):
     
 def post_plots(ds):
     temp_var='cloud_top_temperature'
-    ds['vel_error']=ds['height_vel']-ds['height_tendency']
+    print(abs(ds['vel_error']).mean())
+    print(abs(ds['height_vel']).mean())
+    print(abs(ds['height_tendency']).mean())
+ 
     # calc.hist2d(ds, PLOT_PATH+ 'velheight', ['cloud_top_height','height_vel'], [0,10], [-0.25,0.25])
     # calc.hist2d(ds,PLOT_PATH+ 'veltemp', [temp_var,'height_vel'], [220,290], [-1,1])
     # calc.hist2d(ds, PLOT_PATH+ 'tendtemp', [temp_var,'height_tendency'], [220,290], [-1,1])
@@ -80,22 +84,19 @@ def post_plots(ds):
     ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
 
     calc.scatter2d(ds, PLOT_PATH+ 'veltemp', [temp_var,'height_vel'], [200,240], [-1,1])
-    calc.scatter2d(ds, PLOT_PATH+ 'velheight', ['cloud_top_height','height_vel'], [200,240], [-10,50])
+    calc.scatter2d(ds, PLOT_PATH+ 'velheight', ['cloud_top_height','height_vel'], [200,240], [-2,2])
+    calc.scatter2d(ds, PLOT_PATH+ 'vel_error', ['cloud_top_height','vel_error'], [200,240], [-2,2])
     calc.scatter2d(ds,PLOT_PATH+  'tendtemp', [temp_var,'height_tendency'], [200,240], [-10,10])
-    calc.scatter2d(ds,PLOT_PATH+  'tendheight', ['cloud_top_height','height_tendency'], [200,240], [-10,10])
+    calc.scatter2d(ds,PLOT_PATH+  'tendheight', ['cloud_top_height','height_tendency'], [200,240], [-2,2])
     calc.scatter2d(ds, PLOT_PATH+ 'acctemp', [temp_var,'height_acceleration'], [200,240], [-1e-2,1e-2])
     calc.scatter2d(ds, PLOT_PATH+ 'accheight', ['cloud_top_height','height_acceleration'], [200,240], [-1e-2,1e-2])
     calc.scatter2d(ds, PLOT_PATH+ 'acctend', ['cloud_top_height','height_acceleration_e'], [200,240], [-1e-2,1e-2])
-
-    calc.scatter2d(ds, PLOT_PATH+ 'speedheight', ['cloud_top_height','speed'], [200,240], [-1e-4,1e-4])
-    calc.scatter2d(ds, PLOT_PATH+ 'speedvel', ['speed','height_vel'], [200,240], [-1e-4,1e-4])
-    calc.scatter2d(ds, PLOT_PATH+ 'speedtend', ['speed','height_tendency'], [200,240], [-1e-4,1e-4])
     calc.scatter2d(ds, PLOT_PATH+ 'moistvel', ['belwp','height_vel'], [200,240], [-10,10])
     calc.scatter2d(ds, PLOT_PATH+ 'moisl', ['belwp','height_vel'], [200,240], [-10,10])
 
     calc.scatter2d(ds, PLOT_PATH+ 'moistheight', ['belwp','cloud_top_height'], [200,240], [-10,10])
-
-    
+    calc.scatter2d(ds, PLOT_PATH+ 'pvelheight', ['cloud_top_height','pressure_vel'], [200,240], [-2,2])
+    calc.scatter2d(ds, PLOT_PATH+ 'ptendency', ['cloud_top_height','pressure_tendency'], [200,240], [-2,2])
 
 
 def analysis(ds):
@@ -104,16 +105,26 @@ def analysis(ds):
 
     #ds=ds.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
     ds=ds.coarsen(time=3,boundary='trim').mean()
-    ds['speed']=np.sqrt(ds['u']**2+ds['v']**2)
-    print(ds['speed'].mean())
     ds['height_acceleration']=ds['height_vel'].diff('time')/1800
     ds['height_acceleration_e']=ds['height_tendency'].diff('time')/1800    
+    ds['vel_error']=ds['height_vel']-ds['height_tendency']
+       
+    
+    calc.marginal(ds,'vel_error')
+    calc.marginal(ds,'height_vel')
+    calc.marginal(ds,'height_tendency')
+    calc.marginal(ds,'pressure_tendency')
+    calc.marginal(ds,'pressure_vel')
+   
 
+    
+    
+    ds=ds.where(ds['cloud_top_pressure']>850)
     post_plots(ds)
-
     
     #plot_loop(ds, 'height_acceleration', calc.quiver_hybrid, -0.0001, 0.0001,'RdBu')
     #plot_loop(ds, 'height_acceleration_e', calc.quiver_hybrid, -0.0001, 0.0001,'RdBu')
+    plot_loop(ds, 'cloud_top_pressure', calc.quiver_hybrid, 200, 1000,'viridis','_an')
     plot_loop(ds, 'temperature_ir', calc.quiver_hybrid, 220, 290,'viridis','_an')
     plot_loop(ds, 'height_vel', calc.quiver_hybrid, -1, 1,'RdBu','height_vel_an')
     plot_loop(ds, 'height_tendency', calc.quiver_hybrid, -1,1,'RdBu', 'height_tendency_an')
@@ -121,9 +132,9 @@ def analysis(ds):
     
 
 def main():
-    ds= preprocessing()
-    #ds=xr.open_dataset(NC_PATH+'01-06-2021-23:38:20_output.nc')
-    #analysis(ds)
+    #ds= preprocessing()
+    ds=xr.open_dataset(NC_PATH+'january_output.nc')
+    analysis(ds)
 
 if __name__ == '__main__':
     main()

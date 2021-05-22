@@ -143,10 +143,12 @@ def implot(ds, values, vmin, vmax, date,ax, fig, cmap):
     return ax, fig, im
 
 
-def calc(ds_unit, frame0, nframe0):
+def calc(ds_unit, frame0, nframe0, height0, pressure0):
      frame=np.squeeze(ds_unit[flow_var].values)
-     mask=np.isnan(frame)
      frame=np.nan_to_num(frame)
+     height=np.squeeze(ds_unit['cloud_top_height'].values)
+     mask=np.isnan(height)
+     pressure=np.squeeze(ds_unit['cloud_top_pressure'].values)
      nframe = cv2.normalize(src=frame, dst=None,
                             alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
      #need to test this 
@@ -154,14 +156,24 @@ def calc(ds_unit, frame0, nframe0):
      flowd = optical_flow.calc(frame0, frame, None)
      
      # ####
-     print('mean error:')
-     frame0d=warp_flow(frame0.copy(),flowd.copy())
-     dz=frame-frame0d
-     pz=frame-frame0
-     print(np.mean(abs(frame0-frame0d)))
+  
+     height0=np.nan_to_num(height0)
+     height0d=warp_flow(height0.copy(),flowd.copy())
+     pressure0d=warp_flow(pressure0.copy(),flowd.copy())
+     dz=height-height0d
+     pz=height-height0
+     dp=pressure-pressure0d
+     pp=pressure-pressure0
      dz[mask]=np.nan
+     dp[mask]=np.nan
+     pp[mask]=np.nan
      pz[mask]=np.nan
+     print('mean error:')
+     print(np.nanmean(abs(pp)))
+        
      dzdt=1000/1800*dz
+     dpdt=1/1800*dp
+     pppt=1/1800*pp
      pzpt=1000/1800*pz
      
      ds_unit['flow_x']=(('time','lat','lon'),np.expand_dims(flowd[:,:,0],axis=0))
@@ -169,18 +181,22 @@ def calc(ds_unit, frame0, nframe0):
      ds_unit=wind_calculator(ds_unit)
      ds_unit['height_tendency']=(('time','lat','lon'),np.expand_dims(pzpt,axis=0))
      ds_unit['height_vel']=(('time','lat','lon'),np.expand_dims(dzdt,axis=0))
-     ds_unit['frame0']=(('time','lat','lon'),np.expand_dims(frame0,axis=0))
-     ds_unit['frame0d']=(('time','lat','lon'),np.expand_dims(frame0d,axis=0))
+     ds_unit['pressure_vel']=(('time','lat','lon'),np.expand_dims(dpdt,axis=0))
+     ds_unit['pressure_tendency']=(('time','lat','lon'),np.expand_dims(pppt,axis=0))
+     ds_unit['height0']=(('time','lat','lon'),np.expand_dims(height0,axis=0))
+     ds_unit['height0d']=(('time','lat','lon'),np.expand_dims(height0d,axis=0))
      print('frame0')
-     map_plotter(ds_unit, 'frame0', 'frame0')
+     map_plotter(ds_unit, 'height0', 'height0')
      print('frame0d')
-     map_plotter(ds_unit, 'frame0d', 'frame0d')
-     map_plotter(ds_unit, flow_var, flow_var)
+     map_plotter(ds_unit, 'height0d', 'height0d')
+     map_plotter(ds_unit, 'cloud_top_height', 'cloud_top_height')
 
      frame0=frame
+     pressure0=pressure
+     height0=height
      nframe0=nframe
      
-     return ds_unit, frame0
+     return ds_unit, frame0, height0, pressure0
  
 
 def wind_calculator(ds):
@@ -207,8 +223,7 @@ def wind_calculator(ds):
     
 def interpolation(ds_s,ds_m): 
     print('interpolating...')
-    print(ds_s['cloud_top_pressure'].max())
-    print(ds_m['w'])
+    print(ds_m)
     t_function=rgi(points=(ds_m['level'].values, ds_m['latitude'].values, 
                            ds_m['longitude'].values),values= np.squeeze(ds_m['t'].values),
                    bounds_error=False, fill_value=np.nan)
@@ -216,10 +231,21 @@ def interpolation(ds_s,ds_m):
                                ds_m['latitude'].values, ds_m['longitude'].values),
                        values= np.squeeze(ds_m['w'].values),bounds_error=False, 
                        fill_value=np.nan)
-    df=ds_s[['cloud_top_pressure','cloud_top_height']].to_dataframe().reset_index()
+    
+    v_function=rgi(points=(ds_m['level'].values, ds_m['latitude'].values, 
+                          ds_m['longitude'].values),
+                  values= np.squeeze(ds_m['v'].values),
+                  bounds_error=False, fill_value=np.nan)
+    u_function=rgi(points=(ds_m['level'].values,
+                           ds_m['latitude'].values, ds_m['longitude'].values),
+                   values= np.squeeze(ds_m['u'].values),
+                   bounds_error=False, fill_value=np.nan)
+    df=ds_s[['cloud_top_pressure','cloud_top_height','height_vel','height_tendency','pressure_vel','pressure_tendency']].to_dataframe().reset_index()
     print(df['cloud_top_pressure'].max())
     df['omega']=omega_function(df[['cloud_top_pressure','lat', 'lon']].values)
     df['t']=t_function(df[['cloud_top_pressure','lat', 'lon']].values)
+    df['u']=u_function(df[['cloud_top_pressure','lat', 'lon']].values)
+    df['v']=v_function(df[['cloud_top_pressure','lat', 'lon']].values)
 
     omega=df['omega'].to_numpy()*units('Pa/s')
     pressure=df['cloud_top_pressure'].to_numpy()*units('hPa')
@@ -230,6 +256,19 @@ def interpolation(ds_s,ds_m):
     ds_inter=xr.Dataset.from_dataframe(df)
     print(ds_inter)
     return ds_inter
+
+def omega_calculator(ds, label):
+    df=ds.to_dataframe()
+    df=df.reset_index()
+    omega=df[label].to_numpy()*units('Pa/s')
+    pressure=df['cloud_top_pressure'].to_numpy()*units('hPa')
+    t=df['t'].to_numpy()*units('K')
+    df[label]=metpy.calc.vertical_velocity(omega, pressure, t )
+    df=df.dropna()
+    df=df.set_index(['lat', 'lon','time'])
+    ds=xr.Dataset.from_dataframe(df)
+    return ds
+    
 
 def scatter2d(ds, title, label, xedges, yedges):
     print('scattering...')
@@ -275,4 +314,9 @@ def hist2d(ds, title, label, xedges, yedges):
 
     plt.savefig(title+'_his2d.png', dpi=300)
     plt.close()
-
+    
+def marginal(ds, label):
+    ds[label].plot.hist(bins=100)
+    plt.show()
+    plt.close()
+    plt.savefig(main.PLOT_PATH + label +'_marginal.png', dpi=300)

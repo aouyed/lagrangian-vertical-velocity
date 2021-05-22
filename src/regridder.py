@@ -13,7 +13,7 @@ from natsort import natsorted
 import glob
 from dateutil import parser
 
-files=natsorted(glob.glob('../data/raw/01_06/G16V04.0.ACTIV*'))
+files=natsorted(glob.glob('../data/raw/05_01/G16V04.0.ACTIV*'))
 for file in files:
     ds=xr.open_dataset(file)
     ds =ds.rename({'latitude':'lat', 'longitude':'lon'})
@@ -27,10 +27,12 @@ for file in files:
     ds_out = xr.Dataset({'lat': (['lat'], new_lat), 'lon': ('lon', new_lon), })
     regridder = xe.Regridder(ds, ds_out, 'bilinear',reuse_weights=True)
     dr_out = regridder(ds[['temperature_ir','cloud_top_height','cloud_top_temperature','belwp','cloud_top_pressure']])
-    date=np.array([parser.parse(ds.processed_date).replace(tzinfo=None)])
+    date_s=ds.processed_date
+    date_s=date_s.replace("00,", "01,")
+    date=np.array([parser.parse(date_s).replace(tzinfo=None)])
     dr_out = dr_out.expand_dims('time')
     dr_out = dr_out.assign_coords(time=date)
     filename=date.item().strftime('%Y-%m-%d-%H-%M')+'.nc'
     print(filename)
-    dr_out.to_netcdf('../data/interim/01_06/'+ filename)
+    dr_out.to_netcdf('../data/interim/05_01/'+ filename)
     #print(dr_out)
