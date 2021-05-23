@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 
 
 
+
 def interpolation():
     ds_m=xr.open_dataset('../data/raw/reanalysis/omega_T_U_V_01_06_21.nc')
     ds_s=xr.open_dataset('../data/processed/netcdf/january_output.nc')
@@ -46,18 +47,7 @@ def interpolation():
     return ds_total
         
 
-
-
-def main():
-    ds_m=xr.open_dataset('../data/raw/reanalysis/omega_T_U_V_01_06_21.nc')
-    print(ds_m['w'])
-    #ds=interpolation()
-    ds=xr.open_dataset('../data/processed/model.nc')
-    ds['vel_error']=ds['height_vel']-ds['height_tendency']
-    ds['p_error']=ds['pressure_vel']-ds['pressure_tendency']
-    ds=ds.where(ds['cloud_top_pressure']>850)
-    
-    ds['entrainment']=ds['height_vel']-ds['w']
+def post_process(ds):
     calc.marginal(ds,'entrainment')
     calc.marginal(ds,'vel_error')
     calc.marginal(ds,'height_vel')
@@ -66,27 +56,49 @@ def main():
     calc.marginal(ds,'pressure_tendency')
     calc.marginal(ds,'w')
     calc.marginal(ds,'omega')
-    # ds['entrainment'].plot.hist(bins=100)
-    # plt.show()
-    # plt.close()
-    # ds['entrainment'].plot.hist(bins=100)
-    # plt.show()
-    # plt.close()
-    # ds['height_vel'].plot.hist(bins=100)
-    # plt.show()
-    # plt.close()
-    # ds['height_tendency'].plot.hist(bins=100)
-    # plt.show()
-    # plt.close()
     print(abs(ds['vel_error']).mean())
     print(abs(ds['height_vel']).mean())
     print(abs(ds['height_tendency']).mean())
     print(abs(ds['entrainment']).mean())
     print(abs(ds['w']).mean())
+    print(abs(ds['w*']).mean())
+    print(abs(ds['w_s']).mean())
     print(abs(ds['pressure_vel']).mean())
     print(abs(ds['pressure_tendency']).mean())
     print(abs(ds['p_error']).mean())
     
+
+def main():
+    #ds_m=xr.open_dataset('../data/raw/reanalysis/omega_T_U_V_01_06_21.nc')
+    #print(ds_m['w'])
+    #ds=interpolation()
+    ds=xr.open_dataset('../data/processed/model.nc')
+    ds['vel_error']=ds['height_vel']-ds['height_tendency']
+    ds['p_error']=ds['pressure_vel']-ds['pressure_tendency']
+    ds=ds.where(ds['cloud_top_pressure']<700)
+    ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
+   
+
+    #ds['w']=ds['w*']
+    ds['entrainment']=ds['pressure_vel']-ds['w']
+    ds['w']=100*ds['w']
+    ds['w*']=100*ds['w*']
+    ds['w_s']=100*ds['w_s']
+    ds['vel_error']=100*ds['vel_error']
+    ds['pressure_vel']=100*ds['pressure_vel']
+    ds['pressure_tendency']=100*ds['pressure_tendency']
+    ds['entrainment']=100*ds['entrainment']
+    post_process(ds)
+    
+    ds=ds.sel(time=ds['time'].values[12])
+    print(ds)
+    calc.map_plotter(ds, 'w*','w*', units_label='cm/s', vmin=-1, vmax=1)
+    calc.map_plotter(ds, 'w_s','w_s', units_label='cm/s', vmin=-1, vmax=1)
+    calc.map_plotter(ds, 'w','w', units_label='cm/s', vmin=-1, vmax=1)
+    calc.map_plotter(ds, 'entrainment','entrainment', units_label='cm/s', vmin=-1, vmax=1)
+    calc.map_plotter(ds, 'pressure_vel','pressure_vel', units_label='cm/s', vmin=-0.5, vmax=0.5)
+    calc.map_plotter(ds, 'cloud_top_pressure','cloud_top_pressure', units_label='hpa')
+    calc.quiver_plot(ds, 'model')
 
 
 if __name__ == '__main__':

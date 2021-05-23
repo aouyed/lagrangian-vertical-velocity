@@ -117,13 +117,17 @@ def quick_plotter(ds_unit, date):
 
 
 
-def map_plotter(ds, title, label, units_label=''):
+def map_plotter(ds, title, label, units_label='', vmin=0,vmax=0):
     values=np.squeeze(ds[label].values)
     print('frame shape')
     print(values.shape)
     fig, ax = plt.subplots()
-    im = ax.imshow(values, cmap='viridis', extent=[ds['lon'].min(
-        ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()])
+    if vmin == vmax:
+        im = ax.imshow(values, cmap='viridis', extent=[ds['lon'].min(
+            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()])
+    else:
+           im = ax.imshow(values, cmap='RdBu', extent=[ds['lon'].min(
+            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()], vmin=vmin, vmax=vmax)
     cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.04)
     cbar.set_label(units_label)
     plt.xlabel("lon")
@@ -246,11 +250,18 @@ def interpolation(ds_s,ds_m):
     df['t']=t_function(df[['cloud_top_pressure','lat', 'lon']].values)
     df['u']=u_function(df[['cloud_top_pressure','lat', 'lon']].values)
     df['v']=v_function(df[['cloud_top_pressure','lat', 'lon']].values)
-
+    df['surface_p']=1000
+    df['surface_t']=t_function(df[['surface_p','lat', 'lon']].values)
+    df['omega_s']=omega_function(df[['surface_p','lat', 'lon']].values)
     omega=df['omega'].to_numpy()*units('Pa/s')
     pressure=df['cloud_top_pressure'].to_numpy()*units('hPa')
     t=df['t'].to_numpy()*units('K')
-    df['w']=metpy.calc.vertical_velocity(omega, pressure, t )
+    df['w*']=metpy.calc.vertical_velocity(omega, pressure, t )
+    
+    pressure=df['surface_p'].to_numpy()*units('hPa')
+    t=df['surface_t'].to_numpy()*units('K')
+    df['w_s']=metpy.calc.vertical_velocity(omega, pressure, t )
+    df['w']=df['w*']-df['w_s']
     df=df.set_index(['lat', 'lon','time'])
     df=df.dropna()
     ds_inter=xr.Dataset.from_dataframe(df)
@@ -320,3 +331,36 @@ def marginal(ds, label):
     plt.show()
     plt.close()
     plt.savefig(main.PLOT_PATH + label +'_marginal.png', dpi=300)
+
+def quiver_plot(ds, title):
+    fig, ax = plt.subplots()
+    X, Y = np.meshgrid(ds['lon'].values, ds['lat'].values)
+    ax.set_title(title)
+    Q = ax.quiver(X, Y, np.squeeze(
+        ds['u'].values), np.squeeze(ds['v'].values))
+    qk = ax.quiverkey(Q, 0.8, 0.9, 1, r'$1$ m/s', labelpos='E',
+                      coordinates='figure')
+    fig.tight_layout()
+    plt.savefig('../data/processed/plots/quiver_'+title+'.png',
+                bbox_inches='tight', dpi=300)
+
+    plt.close()
+    
+    
+def contourf_plotter(ds, title, label, units_label, vmin, vmax):
+    values = np.squeeze(ds[label].values)
+    values[values == 0] = np.nan
+    fig, ax = plt.subplots()
+    X, Y= np.meshgrid(ds['lon'].values,ds['lat'].values) 
+    clevsf=np.linspace(vmin, vmax,10, endpoint=True)
+    im = ax.contourf(X,Y,values, clevsf,cmap='viridis',extend="both", extent=[ds['lon'].min(), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()])
+    cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.04)
+    cbar.set_label(units_label)
+    plt.xlabel("lon")
+    plt.ylabel("lat")
+    plt.title(label)
+    plt.tight_layout()
+    plt.savefig('../data/processed/plots/countourf_'+title+'.png',
+                bbox_inches='tight', dpi=300)
+    
+    plt.close()
