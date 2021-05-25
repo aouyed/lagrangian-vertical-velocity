@@ -100,41 +100,47 @@ def post_plots(ds):
 
 
 def analysis(ds):
-    ds=ds.astype(np.float32)
     print(ds['time'].values)
-
-    #ds=ds.coarsen(lat=100, boundary='trim').mean().coarsen(lon=100, boundary='trim').mean()
-    ds=ds.coarsen(time=3,boundary='trim').mean()
-    ds['height_acceleration']=ds['height_vel'].diff('time')/1800
-    ds['height_acceleration_e']=ds['height_tendency'].diff('time')/1800    
+    #ds=ds.coarsen(time=3,boundary='trim').mean()
+    ds=ds.sel(time=ds['time'].values[18])
+    ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
+    ds=ds.where(ds['cloud_top_pressure']<700)
+    ds['pressure_vel']=100*ds['pressure_vel']
+    ds['pressure_tendency']=100*ds['pressure_tendency']
+    ds['pressure_acceleration']=ds['pressure_vel'].diff('time')/1800
+    #ds['height_acceleration_e']=ds['height_tendency'].diff('time')/1800    
     ds['vel_error']=ds['height_vel']-ds['height_tendency']
        
-    
-    calc.marginal(ds,'vel_error')
-    calc.marginal(ds,'height_vel')
-    calc.marginal(ds,'height_tendency')
-    calc.marginal(ds,'pressure_tendency')
-    calc.marginal(ds,'pressure_vel')
+    calc.map_plotter(ds, 'pressure_vel','pressure_vel', units_label='cm/s', vmin=-0.2, vmax=0.2)
+    calc.map_plotter(ds, 'pressure_acceleration','pressure_acceleration', units_label='cm/s', vmin=-0.0002, vmax=0.0002)
+
+    calc.map_plotter(ds, 'cloud_top_pressure','cloud_top_pressure', units_label='hpa')
+
+    #calc.marginal(ds,'vel_error')
+   # calc.marginal(ds,'height_vel')
+    #calc.marginal(ds,'height_tendency')
+    #calc.marginal(ds,'pressure_tendency')
+    #calc.marginal(ds,'pressure_vel')
    
 
     
     
     ds=ds.where(ds['cloud_top_pressure']>850)
-    post_plots(ds)
+    #post_plots(ds)
     
     #plot_loop(ds, 'height_acceleration', calc.quiver_hybrid, -0.0001, 0.0001,'RdBu')
     #plot_loop(ds, 'height_acceleration_e', calc.quiver_hybrid, -0.0001, 0.0001,'RdBu')
-    plot_loop(ds, 'cloud_top_pressure', calc.quiver_hybrid, 200, 1000,'viridis','_an')
-    plot_loop(ds, 'temperature_ir', calc.quiver_hybrid, 220, 290,'viridis','_an')
-    plot_loop(ds, 'height_vel', calc.quiver_hybrid, -1, 1,'RdBu','height_vel_an')
-    plot_loop(ds, 'height_tendency', calc.quiver_hybrid, -1,1,'RdBu', 'height_tendency_an')
+    #plot_loop(ds, 'cloud_top_pressure', calc.quiver_hybrid, 200, 1000,'viridis','_an')
+    #plot_loop(ds, 'temperature_ir', calc.quiver_hybrid, 220, 290,'viridis','_an')
+    #plot_loop(ds, 'height_vel', calc.quiver_hybrid, -1, 1,'RdBu','height_vel_an')
+    #plot_loop(ds, 'height_tendency', calc.quiver_hybrid, -1,1,'RdBu', 'height_tendency_an')
     
     
 
 def main():
-    #ds= preprocessing()
-    ds=xr.open_dataset(NC_PATH+'january_output.nc')
-    analysis(ds)
+    ds= preprocessing()
+    #ds=xr.open_dataset(NC_PATH+'may_21_output.nc')
+   # analysis(ds)
 
 if __name__ == '__main__':
     main()

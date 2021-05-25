@@ -16,12 +16,14 @@ import metpy.calc as mpcalc
 from metpy.units import units
 import main
 import metpy
+import pandas as pd
 
 
 GRID=0.018
 R = 6371000
 
-
+LABELS=['entrainment','w','w*','w_s','pressure_vel','pressure_tendency',
+            'p_error','adv']
 PLOT_PATH='../data/processed/plots/'
 NC_PATH='../data/processed/netcdf/'
 flow_var=main.flow_var
@@ -194,7 +196,7 @@ def calc(ds_unit, frame0, nframe0, height0, pressure0):
      print('frame0d')
      map_plotter(ds_unit, 'height0d', 'height0d')
      map_plotter(ds_unit, 'cloud_top_height', 'cloud_top_height')
-
+     map_plotter(ds_unit, 'cloud_top_pressure', 'cloud_top_pressure')
      frame0=frame
      pressure0=pressure
      height0=height
@@ -326,11 +328,11 @@ def hist2d(ds, title, label, xedges, yedges):
     plt.savefig(title+'_his2d.png', dpi=300)
     plt.close()
     
-def marginal(ds, label):
+def marginal(ds, label, tag):
     ds[label].plot.hist(bins=100)
     plt.show()
     plt.close()
-    plt.savefig(main.PLOT_PATH + label +'_marginal.png', dpi=300)
+    plt.savefig(main.PLOT_PATH + label +'_'+tag+'_marginal.png', dpi=300)
 
 def quiver_plot(ds, title):
     fig, ax = plt.subplots()
@@ -364,3 +366,26 @@ def contourf_plotter(ds, title, label, units_label, vmin, vmax):
                 bbox_inches='tight', dpi=300)
     
     plt.close()
+    
+    
+def marginals(ds, tag):
+    
+    
+    for label in LABELS:
+        marginal(ds,label, tag)
+
+    
+
+def post_process(ds, tag):
+    means={'var':[],'mean_of_mag':[]}
+    
+  
+    
+    for label in LABELS:
+       means['var'].append(label)
+       means['mean_of_mag'].append(abs(ds[label]).mean().item(0))
+
+    df_results = pd.DataFrame(data=means)
+    print(df_results)
+    df_results.to_csv('../data/processed/csv/'+tag+'.csv')
+    

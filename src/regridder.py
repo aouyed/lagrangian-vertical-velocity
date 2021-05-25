@@ -13,7 +13,7 @@ from natsort import natsorted
 import glob
 from dateutil import parser
 
-files=natsorted(glob.glob('../data/raw/05_01/G16V04.0.ACTIV*'))
+files=natsorted(glob.glob('../data/raw/05_21_21/G16V04.0.ACTIV*'))
 for file in files:
     ds=xr.open_dataset(file)
     ds =ds.rename({'latitude':'lat', 'longitude':'lon'})
@@ -34,5 +34,5 @@ for file in files:
     dr_out = dr_out.assign_coords(time=date)
     filename=date.item().strftime('%Y-%m-%d-%H-%M')+'.nc'
     print(filename)
-    dr_out.to_netcdf('../data/interim/05_01/'+ filename)
+    dr_out.to_netcdf('../data/interim/05_21_21/'+ filename)
     #print(dr_out)
