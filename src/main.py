@@ -19,11 +19,12 @@ PLOT_PATH='../data/processed/plots/'
 NC_PATH='../data/processed/netcdf/'
 flow_var='cloud_top_pressure'
 DATE_FORMAT="%m-%d-%Y-%H:%M:%S"
+FOLDER='05_30_21'
 
 
 
 def preprocessing():
-    files=natsorted(glob.glob('../data/interim/01_06/*'))
+    files=natsorted(glob.glob('../data/interim/'+FOLDER+'/*'))
     print(len(files))
     ds_unit=xr.open_dataset(files[0]) 
     frame0=np.squeeze(ds_unit[flow_var].values)
@@ -48,7 +49,7 @@ def preprocessing():
         else:
             ds_total = xr.concat([ds_total, ds_unit], 'time')
     date= pd.to_datetime(str(date[0]))
-    ds_total.to_netcdf(NC_PATH+'january_output.nc')
+    ds_total.to_netcdf(NC_PATH+FOLDER+'_output.nc')
    
     return ds_total
 
@@ -138,9 +139,13 @@ def analysis(ds):
     
 
 def main():
-    ds= preprocessing()
-    #ds=xr.open_dataset(NC_PATH+'may_21_output.nc')
-   # analysis(ds)
+    #ds= preprocessing()
+    ds=xr.open_dataset(NC_PATH+FOLDER+'_output.nc')
+    plot_loop(ds, 'cloud_top_pressure', calc.quiver_hybrid, 200, 1000,'viridis','_may_30_')
+    #ds=xr.open_dataset(NC_PATH+'january_output.nc')
+    #plot_loop(ds, 'cloud_top_pressure', calc.quiver_hybrid, 200, 1000,'viridis','_june_')
+    
+    #analysis(ds)
 
 if __name__ == '__main__':
     main()

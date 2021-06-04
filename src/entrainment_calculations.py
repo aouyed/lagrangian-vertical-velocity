@@ -11,7 +11,8 @@ import calculators as calc
 import metpy.calc as mpcalc
 from metpy.units import units
 import numpy as np
-
+import main as m 
+import datetime
 def advection(ds):
     dx, dy = mpcalc.lat_lon_grid_deltas(ds['lon'].values, ds['lat'].values)
     gradz=mpcalc.gradient(np.squeeze(ds['cloud_top_height'].values), deltas=(dy, dx))
@@ -67,16 +68,27 @@ def analysis(ds,tag):
     ds=preprocess(ds)
     plot_sequence(ds.where(ds['cloud_top_pressure']<850),tag+'_high')
     plot_sequence(ds.where(ds['cloud_top_pressure']>850),tag+'_low')
+    
+
+    ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
+    calc.quiver_plot(ds.sel(time=ds['time'].values[5]), tag)
 
     print(ds)
 
     
 def main():
+
+    #ds=xr.open_dataset('../data/processed/model_january.nc')
     
-    #ds=xr.open_dataset('../data/processed/model.nc')
-    #analysis(ds, 'january')
-    ds=xr.open_dataset('../data/processed/model_january.nc')
-    analysis(ds, 'january')
+    ds=xr.open_dataset(m.NC_PATH+m.FOLDER+'_output.nc')
+    ds=ds.sel(lon=slice(-85,-70),lat=slice(20,25),time=slice(datetime.datetime(2021,5,30,13),datetime.datetime(2021,5,30,23)))
+    ds=ds.coarsen(lat=5, boundary='trim').mean().coarsen(lon=5, boundary='trim').mean()
+
+    ds['pressure_vel']=100*ds['pressure_vel']
+    m.plot_loop(ds, 'pressure_vel', calc.quiver_hybrid, -1, 1,'RdBu','_may_30_')
+    #analysis(ds, m.FOLDER)
+    #ds=xr.open_dataset('../data/processed/model_may.nc')
+    #analysis(ds, 'may')
     
     
 if __name__ == '__main__':

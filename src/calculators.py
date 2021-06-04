@@ -139,6 +139,8 @@ def map_plotter(ds, title, label, units_label='', vmin=0,vmax=0):
     plt.title(label)
     plt.show()
     plt.close()  
+    
+
 
 
 def implot(ds, values, vmin, vmax, date,ax, fig, cmap):
@@ -331,8 +333,8 @@ def hist2d(ds, title, label, xedges, yedges):
 def marginal(ds, label, tag):
     ds[label].plot.hist(bins=100)
     plt.show()
-    plt.close()
     plt.savefig(main.PLOT_PATH + label +'_'+tag+'_marginal.png', dpi=300)
+    plt.close()
 
 def quiver_plot(ds, title):
     fig, ax = plt.subplots()
