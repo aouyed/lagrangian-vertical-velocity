@@ -17,13 +17,16 @@ from metpy.units import units
 import main
 import metpy
 import pandas as pd
+import matplotlib
 
 
 GRID=0.018
 R = 6371000
 
-LABELS=['entrainment','w','w*','w_s','pressure_vel','pressure_tendency',
-            'p_error','adv']
+#LABELS=['entrainment','w','w*','w_s','pressure_vel','pressure_tendency',
+ #           'p_error','adv']
+LABELS=['pressure_vel','pressure_tendency',
+           'p_error']
 PLOT_PATH='../data/processed/plots/'
 NC_PATH='../data/processed/netcdf/'
 flow_var=main.flow_var
@@ -43,7 +46,7 @@ def quiver_plotter(ds, title, date):
 
 def quiver_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
     ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
-    ax, fig, im=implot(ds, values, vmin, vmax, date,ax, fig, cmap)
+    ax, fig, im=implot(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv)
     #ds=ds.coarsen(lat=3, boundary='trim').mean().coarsen(lon=3, boundary='trim').mean()
     X,Y=np.meshgrid(ds['lon'].values,ds['lat'].values)
     Q = ax.quiver(X,Y, np.squeeze(ds['flow_x'].values), np.squeeze(ds['flow_y'].values))
@@ -143,26 +146,45 @@ def map_plotter(ds, title, label, units_label='', vmin=0,vmax=0):
 
 
 
-def implot(ds, values, vmin, vmax, date,ax, fig, cmap):
-    pmap = cmocean.cm.haline
+def implot(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
+    cmap = plt.get_cmap(cmap)
+    cmap.set_bad(color='grey')
     im = ax.imshow(values, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax, 
                    extent=[ds['lon'].min().item(),
                            ds['lon'].max().item(),ds['lat'].min().item(),ds['lat'].max().item()])
     return ax, fig, im
 
+def implot_masked(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
 
-def calc(ds_unit, frame0, nframe0, height0, pressure0):
+    #values= ds['cloud_top_pressure'].values
+    mask=values>750
+   # mask[mask==False]=np.nan
+    print(mask)
+    cmap = plt.get_cmap(cmap)
+    cmap.set_bad(color='grey')
+    im = ax.imshow(values, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax, 
+                   extent=[ds['lon'].min().item(),
+                           ds['lon'].max().item(),ds['lat'].min().item(),ds['lat'].max().item()])
+    cmap1 = plt.get_cmap('tab20b')
+    #cmap1.set_bad(alpha=0)
+    ax.imshow(mask,cmap=cmap1)
+
+    return ax, fig, im
+
+def calc(ds_unit, frame0, pressure0, height0):
      frame=np.squeeze(ds_unit[flow_var].values)
      frame=np.nan_to_num(frame)
      height=np.squeeze(ds_unit['cloud_top_height'].values)
      mask=np.isnan(height)
      pressure=np.squeeze(ds_unit['cloud_top_pressure'].values)
+     nframe0 = cv2.normalize(src=frame0, dst=None,
+                            alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
      nframe = cv2.normalize(src=frame, dst=None,
                             alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
      #need to test this 
-     optical_flow = cv2.optflow.createOptFlow_DeepFlow()
-     flowd = optical_flow.calc(frame0, frame, None)
-     
+     #optical_flow = cv2.optflow.createOptFlow_DeepFlow()
+     #flowd = optical_flow.calc(frame0, frame, None)
+     flowd=cv2.calcOpticalFlowFarneback(nframe0,nframe, None, 0.5, 3, 20, 3, 7, 1.2, 0)
      # ####
   
      height0=np.nan_to_num(height0)
@@ -203,7 +225,8 @@ def calc(ds_unit, frame0, nframe0, height0, pressure0):
      pressure0=pressure
      height0=height
      nframe0=nframe
-     
+     print(abs(ds_unit['pressure_vel']).mean())
+     print(abs(ds_unit['pressure_tendency']).mean())
      return ds_unit, frame0, height0, pressure0
  
 

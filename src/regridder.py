@@ -13,7 +13,7 @@ from natsort import natsorted
 import glob
 from dateutil import parser
 
-FOLDER='05_30_21'
+FOLDER='02_06_21'
 
 files=natsorted(glob.glob('../data/raw/'+FOLDER+'/G16V04.0.ACTIV*'))
 for file in files:
@@ -26,8 +26,12 @@ for file in files:
     lonmin = ds['lon'].min(skipna=True).item()
     #new_lat = np.arange(latmin, latmax, 0.018)
     #new_lon = np.arange(lonmin, lonmax, 0.018)
-    new_lat = np.arange(latmin, latmax, 0.031)
-    new_lon = np.arange(lonmin, lonmax, 0.031)       
+    dtheta_lon=(lonmax-lonmin)/ds['image_x'].values.shape[0]
+    dtheta_lat=(latmax-latmin)/ds['image_y'].values.shape[0]
+    dtheta=min(dtheta_lon,dtheta_lat)
+    new_lat = np.arange(latmin, latmax, dtheta)
+    new_lon = np.arange(lonmin, lonmax, dtheta)   
+    print(dtheta)    
     ds_out = xr.Dataset({'lat': (['lat'], new_lat), 'lon': ('lon', new_lon), })
     regridder = xe.Regridder(ds, ds_out, 'bilinear',reuse_weights=True)
     dr_out = regridder(ds[['temperature_ir','cloud_top_height','cloud_top_temperature','belwp','cloud_top_pressure']])
