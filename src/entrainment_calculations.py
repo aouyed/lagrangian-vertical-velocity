@@ -91,10 +91,12 @@ def main():
     #ds=ds.where(ds['cloud_top_pressure']<850)
     #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
     #ds=ds.where(ds['cloud_top_pressure']>750)
-    #ds=ds.coarsen(time=3,boundary='trim').mean()
+    ds=ds.coarsen(time=3,boundary='trim').mean()
     ds=ds.coarsen(lat=10, boundary='trim').mean().coarsen(lon=10, boundary='trim').mean()
     ds['pressure_vel']=100*ds['pressure_vel']
-    m.plot_loop(ds, 'cloud_top_pressure',calc.implot_masked, 200, 1000,'viridis',m.FOLDER)
+    #
+    #calc.map_plotter_masked(ds.sel(time=ds['time'].values[0]), 'cloud_top_pressure', 'cloud_top_pressure')
+    #m.plot_loop(ds, 'cloud_top_pressure',calc.implot_masked, 200, 1000,'winter',m.FOLDER)
     m.plot_loop(ds, 'pressure_vel', calc.implot_masked, -1, 1,'RdBu',m.FOLDER)
     #analysis(ds, m.FOLDER)
     #ds=xr.open_dataset('../data/processed/model_may.nc')

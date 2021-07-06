@@ -143,6 +143,38 @@ def map_plotter(ds, title, label, units_label='', vmin=0,vmax=0):
     plt.show()
     plt.close()  
     
+    
+def map_plotter_masked(ds, title, label,cmap='viridis', units_label='', vmin=0,vmax=0):
+    values=np.squeeze(ds[label].values)
+    print('frame shape')
+    print(values.shape)
+    fig, ax = plt.subplots()
+    mask=values>750
+    mask=mask.astype(np.float32)
+    mask[mask==0]=np.nan
+
+  
+    if vmin == vmax:
+        im=ax.imshow(values, cmap=cmap, extent=[ds['lon'].min(
+            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()])
+    else:
+        im=ax.imshow(values, cmap='RdBu', extent=[ds['lon'].min(
+            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()], vmin=vmin, vmax=vmax)
+    # bar = fig.colorbar(ax=ax, fraction=0.025, pad=0.04)
+    #cbar.set_label(units_label)
+    #masked = np.ma.masked_where(values < 750, values)
+    #ax.imshow(masked,alpha=1,cmap = 'Reds')
+    cmap1 = plt.get_cmap('winter')
+    cmap1.set_bad(alpha=0)
+    im=ax.imshow(mask, cmap=cmap1, extent=[ds['lon'].min(
+            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()])
+    plt.xlabel("lon")
+    plt.ylabel("lat")
+    plt.savefig('../data/processed/plots/'+title+'.png',
+                bbox_inches='tight', dpi=300)
+    plt.title(label)
+    plt.show()
+    plt.close
 
 
 
@@ -156,18 +188,25 @@ def implot(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
 
 def implot_masked(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
 
-    #values= ds['cloud_top_pressure'].values
-    mask=values>750
-   # mask[mask==False]=np.nan
-    print(mask)
+    values_m= ds['cloud_top_pressure'].values
+    mask=values_m<750
+    mask=mask.astype(np.float32)
+    mask=np.flipud(mask)
+    mask[mask==0]=np.nan
+    #mask=values.copy()
+    
+  
     cmap = plt.get_cmap(cmap)
     cmap.set_bad(color='grey')
     im = ax.imshow(values, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax, 
                    extent=[ds['lon'].min().item(),
                            ds['lon'].max().item(),ds['lat'].min().item(),ds['lat'].max().item()])
-    cmap1 = plt.get_cmap('tab20b')
-    #cmap1.set_bad(alpha=0)
-    ax.imshow(mask,cmap=cmap1)
+    
+    cmap1 = plt.get_cmap('tab20b_r')
+    cmap1.set_bad(alpha=0)
+    im=ax.imshow(mask, cmap=cmap1, extent=[ds['lon'].min().item(),
+                          ds['lon'].max().item(),ds['lat'].min().item(),ds['lat'].max().item()])
+    
 
     return ax, fig, im
 
