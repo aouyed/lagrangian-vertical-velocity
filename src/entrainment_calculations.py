@@ -92,12 +92,18 @@ def main():
     #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
     #ds=ds.where(ds['cloud_top_pressure']>750)
     ds=ds.coarsen(time=3,boundary='trim').mean()
-    ds=ds.coarsen(lat=10, boundary='trim').mean().coarsen(lon=10, boundary='trim').mean()
+    ds=ds.coarsen(lat=24, boundary='trim').mean().coarsen(lon=98, boundary='trim').mean()
+    #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
     ds['pressure_vel']=100*ds['pressure_vel']
-    #
+    ds=ds.sel(lat=slice(21,21.75), lon=slice(-91,-88))
+    ds['pressure_vel'].plot()
+    
     #calc.map_plotter_masked(ds.sel(time=ds['time'].values[0]), 'cloud_top_pressure', 'cloud_top_pressure')
     #m.plot_loop(ds, 'cloud_top_pressure',calc.implot_masked, 200, 1000,'winter',m.FOLDER)
-    m.plot_loop(ds, 'pressure_vel', calc.implot_masked, -1, 1,'RdBu',m.FOLDER)
+    #m.plot_loop(ds, 'cloud_top_pressure', calc.marginal_an, -1, 1,'RdBu',m.FOLDER)
+
+    #m.plot_loop(ds, 'pressure_vel', calc.marginal_an, -1, 1,'RdBu',m.FOLDER)
+
     #analysis(ds, m.FOLDER)
     #ds=xr.open_dataset('../data/processed/model_may.nc')
     #analysis(ds, 'may')

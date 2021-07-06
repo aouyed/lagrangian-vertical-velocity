@@ -397,7 +397,15 @@ def marginal(ds, label, tag):
     plt.show()
     plt.savefig(main.PLOT_PATH + label +'_'+tag+'_marginal.png', dpi=300)
     plt.close()
+    
+def marginal_an(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
 
+    values=values.flatten()
+    print(np.nanmean(values))
+    im = ax.hist(values, bins=100)
+    #plt.xlim(-10,10)
+
+    return ax, fig, im
 def quiver_plot(ds, title):
     fig, ax = plt.subplots()
     X, Y = np.meshgrid(ds['lon'].values, ds['lat'].values)

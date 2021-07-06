@@ -13,7 +13,7 @@ from natsort import natsorted
 import glob
 from dateutil import parser
 
-FOLDER='02_06_21'
+FOLDER='01_28_21'
 
 files=natsorted(glob.glob('../data/raw/'+FOLDER+'/G16V04.0.ACTIV*'))
 for file in files:

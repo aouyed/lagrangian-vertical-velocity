@@ -19,7 +19,7 @@ PLOT_PATH='../data/processed/plots/'
 NC_PATH='../data/processed/netcdf/'
 flow_var='cloud_top_pressure'
 DATE_FORMAT="%m-%d-%Y-%H:%M:%S"
-FOLDER='02_06_21'
+FOLDER='01_28_21'
 #FOLDER='05_30_21'
 #FOLDER='may'
 
@@ -61,7 +61,8 @@ def plot_loop(ds, var, func, vmin, vmax, cmap,scatterv):
         ds_unit=ds.sel(time=date)
         ax, fig, im =func(ds_unit, ds_unit[var].values, vmin,vmax,date, ax, fig, cmap,scatterv)
         camera.snap()
-    cbar=plt.colorbar(im)
+    if func != calc.marginal_an:    
+        cbar=plt.colorbar(im)
     animation = camera.animate()
     animation.save(PLOT_PATH+ var+'_'+scatterv+'.gif')
     
@@ -108,7 +109,6 @@ def analysis(ds):
     calc.map_plotter(ds, 'cloud_top_pressure','cloud_top_pressure', units_label='hpa')
 
    
-
     
     
     ds=ds.where(ds['cloud_top_pressure']>850)
@@ -117,7 +117,7 @@ def analysis(ds):
     
 
 def main():
-    #ds= preprocessing()
+    ds= preprocessing()
     ds=xr.open_dataset(NC_PATH+FOLDER+'_output.nc')
     plot_loop(ds, 'cloud_top_pressure', calc.quiver_hybrid, 200, 1000,'viridis',FOLDER)
    
