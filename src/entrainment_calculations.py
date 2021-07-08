@@ -5,6 +5,7 @@ Created on Mon May 24 10:55:28 2021
 
 @author: aouyed
 """
+import matplotlib.pyplot as plt
 import xarray as xr
 import model
 import calculators as calc
@@ -78,28 +79,41 @@ def analysis(ds,tag):
 
     print(ds)
 
-    
+ 
+   
 def main():
 
     #ds=xr.open_dataset('../data/processed/model_january.nc')
     
     ds=xr.open_dataset(m.NC_PATH+m.FOLDER+'_output.nc')
-    ds=ds[['cloud_top_pressure','pressure_vel']]
+    ds=ds[['cloud_top_pressure','pressure_vel','pressure_tendency']]
    # ds['pressure_vel']=ds['pressure_vel'].fillna(-9999)
     #ds['cloud_top_pressure']=ds['cloud_top_pressure'].fillna(9999)
     #ds=ds.sel(lon=slice(-100,-70),lat=slice(0,30))
     #ds=ds.where(ds['cloud_top_pressure']<850)
     #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
     #ds=ds.where(ds['cloud_top_pressure']>750)
-    ds=ds.coarsen(time=3,boundary='trim').mean()
-    ds=ds.coarsen(lat=24, boundary='trim').mean().coarsen(lon=98, boundary='trim').mean()
     #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
     ds['pressure_vel']=100*ds['pressure_vel']
-    ds=ds.sel(lat=slice(21,21.75), lon=slice(-91,-88))
-    ds['pressure_vel'].plot()
+    ds['pressure_tendency']=100*ds['pressure_tendency']
+    
     
     #calc.map_plotter_masked(ds.sel(time=ds['time'].values[0]), 'cloud_top_pressure', 'cloud_top_pressure')
-    #m.plot_loop(ds, 'cloud_top_pressure',calc.implot_masked, 200, 1000,'winter',m.FOLDER)
+    #m.plot_loop(ds, 'cloud_top_pressure',calc.implot, 200, 1000,'winter',m.FOLDER)
+    ds=ds.coarsen(time=3,boundary='trim').mean()
+    ds=ds.coarsen(lat=24, boundary='trim').mean().coarsen(lon=98, boundary='trim').mean()
+    print(ds)
+    ds=ds.sel(lat=slice(21,21.75), lon=slice(-91,-88))
+    
+
+    ds['pressure_vel'].plot()
+    ds['pressure_tendency'].plot()
+    plt.show()
+    plt.close()
+    ds['cloud_top_pressure'].plot()
+
+    
+    
     #m.plot_loop(ds, 'cloud_top_pressure', calc.marginal_an, -1, 1,'RdBu',m.FOLDER)
 
     #m.plot_loop(ds, 'pressure_vel', calc.marginal_an, -1, 1,'RdBu',m.FOLDER)
