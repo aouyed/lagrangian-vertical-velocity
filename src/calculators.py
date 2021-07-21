@@ -18,6 +18,8 @@ import main
 import metpy
 import pandas as pd
 import matplotlib
+from matplotlib.ticker import MaxNLocator
+
 
 
 GRID=0.018
@@ -179,6 +181,8 @@ def map_plotter_masked(ds, title, label,cmap='viridis', units_label='', vmin=0,v
 
 
 def implot(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
+    ax.yaxis.set_major_locator(plt.MaxNLocator(2))
+    ax.xaxis.set_major_locator(plt.MaxNLocator(2))
     cmap = plt.get_cmap(cmap)
     cmap.set_bad(color='grey')
     im = ax.imshow(values, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax, 
@@ -240,10 +244,10 @@ def calc(ds_unit, frame0, pressure0, height0):
      print('mean error:')
      print(np.nanmean(abs(pp)))
         
-     dzdt=1000/1800*dz
-     dpdt=1/1800*dp
-     pppt=1/1800*pp
-     pzpt=1000/1800*pz
+     dzdt=1000/1200*dz
+     dpdt=1/1200*dp
+     pppt=1/1200*pp
+     pzpt=1000/1200*pz
      
      ds_unit['flow_x']=(('time','lat','lon'),np.expand_dims(flowd[:,:,0],axis=0))
      ds_unit['flow_y']=(('time','lat','lon'),np.expand_dims(flowd[:,:,1],axis=0))

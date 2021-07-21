@@ -14,6 +14,8 @@ import calculators as calc
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 from celluloid import Camera
 import pandas as pd
+from pylab import MaxNLocator
+
 
 PLOT_PATH='../data/processed/plots/'
 NC_PATH='../data/processed/netcdf/'

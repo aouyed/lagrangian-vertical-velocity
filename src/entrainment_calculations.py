@@ -80,12 +80,15 @@ def analysis(ds,tag):
     print(ds)
 
  
+
+    
    
 def main():
 
     #ds=xr.open_dataset('../data/processed/model_january.nc')
     
     ds=xr.open_dataset(m.NC_PATH+m.FOLDER+'_output.nc')
+    print(ds['time'].values)
     ds=ds[['cloud_top_pressure','pressure_vel','pressure_tendency']]
    # ds['pressure_vel']=ds['pressure_vel'].fillna(-9999)
     #ds['cloud_top_pressure']=ds['cloud_top_pressure'].fillna(9999)
@@ -94,24 +97,30 @@ def main():
     #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
     #ds=ds.where(ds['cloud_top_pressure']>750)
     #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
-    ds['pressure_vel']=100*ds['pressure_vel']
-    ds['pressure_tendency']=100*ds['pressure_tendency']
+    ds['pressure_vel']=ds['pressure_vel']*1800/1200*60
+    ds['pressure_tendency']=ds['pressure_tendency']*1800/1200*60
     
     
     #calc.map_plotter_masked(ds.sel(time=ds['time'].values[0]), 'cloud_top_pressure', 'cloud_top_pressure')
+    #ds=ds.sel(lat=slice(21,21.75), lon=slice(-91,-88))
+
     #m.plot_loop(ds, 'cloud_top_pressure',calc.implot, 200, 1000,'winter',m.FOLDER)
     ds=ds.coarsen(time=3,boundary='trim').mean()
     ds=ds.coarsen(lat=24, boundary='trim').mean().coarsen(lon=98, boundary='trim').mean()
     print(ds)
     ds=ds.sel(lat=slice(21,21.75), lon=slice(-91,-88))
     
-
-    ds['pressure_vel'].plot()
-    ds['pressure_tendency'].plot()
+  
+    plt.gca().invert_yaxis()
+    ds['pressure_vel'].plot(label='velocity')
+    ds['pressure_tendency'].plot(label='tendency')
+    plt.ylabel('[hPa/min]')
+    plt.legend()
     plt.show()
     plt.close()
+    plt.gca().invert_yaxis()
     ds['cloud_top_pressure'].plot()
-
+    plt.ylabel('cloud top pressure [hPa]')
     
     
     #m.plot_loop(ds, 'cloud_top_pressure', calc.marginal_an, -1, 1,'RdBu',m.FOLDER)
