@@ -190,6 +190,25 @@ def implot(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
                            ds['lon'].max().item(),ds['lat'].min().item(),ds['lat'].max().item()])
     return ax, fig, im
 
+def implot_quiver(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
+    ax.yaxis.set_major_locator(plt.MaxNLocator(2))
+    ax.xaxis.set_major_locator(plt.MaxNLocator(2))
+    cmap = plt.get_cmap(cmap)
+    cmap.set_bad(color='grey')
+    im = ax.imshow(values, cmap=cmap, origin='lower', vmin=vmin, vmax=vmax, 
+                   extent=[ds['lon'].min().item(),
+                           ds['lon'].max().item(),ds['lat'].min().item(),ds['lat'].max().item()])
+    ds=ds.coarsen(lat=3,lon=3, boundary='trim').mean()
+
+    X, Y = np.meshgrid(ds['lon'].values, ds['lat'].values)
+    Q = ax.quiver(X, Y, np.squeeze(
+        ds['flow_x'].values), np.squeeze(ds['flow_y'].values))
+    qk = ax.quiverkey(Q, 0.8, 0.9, 5, r'5 m/s', labelpos='E',
+                      coordinates='figure')
+    
+    
+    return ax, fig, im
+
 def implot_masked(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
 
     values_m= ds['cloud_top_pressure'].values

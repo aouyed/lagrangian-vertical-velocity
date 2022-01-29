@@ -14,6 +14,7 @@ from metpy.units import units
 import numpy as np
 import main as m 
 import datetime
+
 def advection(ds):
     dx, dy = mpcalc.lat_lon_grid_deltas(ds['lon'].values, ds['lat'].values)
     gradz=mpcalc.gradient(np.squeeze(ds['cloud_top_height'].values), deltas=(dy, dx))
@@ -80,35 +81,11 @@ def analysis(ds,tag):
     print(ds)
 
  
-
-    
-   
-def main():
-
-    #ds=xr.open_dataset('../data/processed/model_january.nc')
-    
-    ds=xr.open_dataset(m.NC_PATH+m.FOLDER+'_output.nc')
-    print(ds['time'].values)
-    ds=ds[['cloud_top_pressure','pressure_vel','pressure_tendency']]
-   # ds['pressure_vel']=ds['pressure_vel'].fillna(-9999)
-    #ds['cloud_top_pressure']=ds['cloud_top_pressure'].fillna(9999)
-    #ds=ds.sel(lon=slice(-100,-70),lat=slice(0,30))
-    #ds=ds.where(ds['cloud_top_pressure']<850)
-    #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
-    #ds=ds.where(ds['cloud_top_pressure']>750)
-    #ds=ds.coarsen(lat=25, boundary='trim').mean().coarsen(lon=25, boundary='trim').mean()
-    ds['pressure_vel']=ds['pressure_vel']*1800/1200*60
-    ds['pressure_tendency']=ds['pressure_tendency']*1800/1200*60
-    
-    
-    #calc.map_plotter_masked(ds.sel(time=ds['time'].values[0]), 'cloud_top_pressure', 'cloud_top_pressure')
-    #ds=ds.sel(lat=slice(21,21.75), lon=slice(-91,-88))
-
-    #m.plot_loop(ds, 'cloud_top_pressure',calc.implot, 200, 1000,'winter',m.FOLDER)
+def timeseries():
     ds=ds.coarsen(time=3,boundary='trim').mean()
     ds=ds.coarsen(lat=24, boundary='trim').mean().coarsen(lon=98, boundary='trim').mean()
     print(ds)
-    ds=ds.sel(lat=slice(21,21.75), lon=slice(-91,-88))
+    #ds=ds.sel(lat=slice(21,21.75), lon=slice(-91,-88))
     
   
     plt.gca().invert_yaxis()
@@ -122,14 +99,33 @@ def main():
     ds['cloud_top_pressure'].plot()
     plt.ylabel('cloud top pressure [hPa]')
     
+
     
-    #m.plot_loop(ds, 'cloud_top_pressure', calc.marginal_an, -1, 1,'RdBu',m.FOLDER)
+   
+def main():
 
-    #m.plot_loop(ds, 'pressure_vel', calc.marginal_an, -1, 1,'RdBu',m.FOLDER)
+    #ds=xr.open_dataset('../data/processed/model_january.nc')
+    
+    ds=xr.open_dataset(m.NC_PATH+m.FOLDER+'_output.nc')
+    ds=ds.sel(lat=slice(21,21.75), lon=slice(-91,-88))
 
-    #analysis(ds, m.FOLDER)
-    #ds=xr.open_dataset('../data/processed/model_may.nc')
-    #analysis(ds, 'may')
+    #ds=ds.coarsen(lat=3,lon=3, boundary='trim').mean()
+    ds=ds.coarsen(time=3,boundary='trim').mean()
+    
+    print(ds['time'].values)
+    ds=ds[['cloud_top_pressure','pressure_vel','pressure_tendency','flow_x','flow_y']]
+    ds[['pressure_vel','pressure_tendency']]=  ds[['pressure_vel',
+                                                'pressure_tendency']].rolling(
+        lat=3, lon=3, center=True).mean()
+    ds['pressure_vel']=ds['pressure_vel']*1800/1200*60
+    ds['pressure_tendency']=ds['pressure_tendency']*1800/1200*60
+    
+    
+    m.plot_loop(ds, 'cloud_top_pressure',calc.implot_quiver, 200, 1000,'winter',m.FOLDER)
+    m.plot_loop(ds, 'pressure_vel',calc.implot_quiver, -10, 10,'RdBu',m.FOLDER)
+    m.plot_loop(ds, 'pressure_tendency',calc.implot_quiver,-10, 10,'RdBu',m.FOLDER)
+
+    
     
     
 if __name__ == '__main__':
