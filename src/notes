@@ -1,0 +1,12 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Jan 31 18:31:02 2022
+
+@author: aouyed
+"""
+ds['lat'].where(lat)
+values=ds['lat_coor'].where(ds.lat>10).values
+np.unique(values[~np.isnan(values)]))
+
+"write a  test later for constructing lat lon meshgrids. unique values must comform to test "

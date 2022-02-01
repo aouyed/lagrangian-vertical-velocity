@@ -115,12 +115,12 @@ def main():
     print(ds['time'].values)
     ds=ds[['cloud_top_pressure','pressure_vel','pressure_tendency','flow_x','flow_y']]
     ds[['pressure_vel','pressure_tendency']]=  ds[['pressure_vel',
-                                                'pressure_tendency']].rolling(
+                                               'pressure_tendency']].rolling(
         lat=3, lon=3, center=True).mean()
     ds['pressure_vel']=ds['pressure_vel']*1800/1200*60
     ds['pressure_tendency']=ds['pressure_tendency']*1800/1200*60
     
-    
+     
     m.plot_loop(ds, 'cloud_top_pressure',calc.implot_quiver, 200, 1000,'winter',m.FOLDER)
     m.plot_loop(ds, 'pressure_vel',calc.implot_quiver, -10, 10,'RdBu',m.FOLDER)
     m.plot_loop(ds, 'pressure_tendency',calc.implot_quiver,-10, 10,'RdBu',m.FOLDER)
