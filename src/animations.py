@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Mon May 24 10:55:28 2021
-
-@author: aouyed
+Produces animations of important variables calculated from
+main
 """
 import matplotlib.pyplot as plt
 import xarray as xr

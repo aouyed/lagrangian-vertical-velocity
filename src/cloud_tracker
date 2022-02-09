@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Feb  8 13:57:26 2022
+
+@author: aouyed
+"""
+
+import cv2
+import numpy as np
+import xarray as xr
+import main as m 
+
+
+
+def countourer(values, kernelv, threshv,  area_lim=100):
+    values = cv2.blur(values, (10, 10))
+
+    _, thresh = cv2.threshold(values.copy(), threshv, 255,cv2.THRESH_BINARY)
+    thresh = thresh.astype(np.uint8)
+    kernel = np.ones((kernelv, kernelv), np.uint8)
+    # thresh=cv2.blur(thresh,(8,8))
+    thresh = cv2.dilate(thresh, kernel, iterations=1)
+
+    contours, hierarchy = cv2.findContours(
+        thresh.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+
+    # print(np.shape(thresh))
+    contours_map = np.zeros(thresh.shape)
+    track_map = np.zeros(thresh.shape)
+    areas_map = np.zeros(thresh.shape)
+    areas = []
+    contoursm = []
+    for i, contour in enumerate(contours):
+        area = cv2.contourArea(contour)
+        length = np.sqrt(area)
+        if area > area_lim:
+            n = i
+            # cv2.drawContours(zeros, contour, -1, 255, 10)
+            cv2.drawContours(contours_map, contour, -1, 255, 20)
+            cv2.drawContours(track_map, [contour], -1, n, -1)
+            cv2.drawContours(areas_map, [contour], -1, area, -1)
+            areas.append(cv2.contourArea(contour))
+            contoursm.append(contour)
+    # print('contour length')
+    n_contours = len(contoursm)
+    print('n_contours')
+    print(n_contours)
+    areas = np.array(areas)
+    lengths = np.sqrt(areas)
+    return contours_map, track_map, areas_map
+
+
+def main():
+    kernel = 1
+
+    threshv = 1
+    print('begin dataframe construction...')
+
+    file=   m.NC_PATH+m.FOLDER+'_output.nc'
+    ds=xr.open_dataset(file)
+
+    
+
+    ds_clouds= ds['cloud_top_pressure'].sel(time=ds['time'].values[0])
+    ds_clouds=ds_clouds.fillna(0)
+    values =ds_clouds.values
+    values = np.squeeze(values)
+
+    contours_map, track_map, areas_map= countourer(values, kernel, threshv)
+    
+     
+
+if __name__ == "__main__":
+    main()

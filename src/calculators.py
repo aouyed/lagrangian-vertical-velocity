@@ -31,7 +31,7 @@ LABELS=['pressure_vel','pressure_tendency',
            'p_error']
 PLOT_PATH='../data/processed/plots/'
 NC_PATH='../data/processed/netcdf/'
-flow_var=main.flow_var
+flow_var=''
 DATE_FORMAT="%m/%d/%Y, %H:%M:%S"
 
 def quiver_plotter(ds, title, date):
@@ -131,10 +131,10 @@ def map_plotter(ds, title, label, units_label='', vmin=0,vmax=0):
     fig, ax = plt.subplots()
     if vmin == vmax:
         im = ax.imshow(values, cmap='viridis', extent=[ds['lon'].min(
-            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()])
+            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()], origin='lower')
     else:
            im = ax.imshow(values, cmap='RdBu', extent=[ds['lon'].min(
-            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()], vmin=vmin, vmax=vmax)
+            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()], vmin=vmin, vmax=vmax,origin='bottom')
     cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.04)
     cbar.set_label(units_label)
     plt.xlabel("lon")

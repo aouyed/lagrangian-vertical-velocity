@@ -48,7 +48,8 @@ ds['lon_coor']= (['lat','lon'], lon)
 start=ds['obs_time_tai93']
 dt_sec=240*ds['lon_coor']
 dt=dt_sec.values.astype('timedelta64[s]')
-ds['obs_time']=start + dt
+obs_time=start.values + dt
+ds['obs_time']=(['lat','lon'], obs_time)
 breakpoint()
 
 
