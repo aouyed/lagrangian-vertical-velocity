@@ -134,7 +134,7 @@ def map_plotter(ds, title, label, units_label='', vmin=0,vmax=0):
             ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()], origin='lower')
     else:
            im = ax.imshow(values, cmap='RdBu', extent=[ds['lon'].min(
-            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()], vmin=vmin, vmax=vmax,origin='bottom')
+            ), ds['lon'].max(), ds['lat'].min(), ds['lat'].max()], vmin=vmin, vmax=vmax,origin='lower')
     cbar = fig.colorbar(im, ax=ax, fraction=0.025, pad=0.04)
     cbar.set_label(units_label)
     plt.xlabel("lon")

@@ -38,7 +38,7 @@ def countourer(values, kernelv, threshv,  area_lim=100):
         if area > area_lim:
             n = i
             # cv2.drawContours(zeros, contour, -1, 255, 10)
-            cv2.drawContours(contours_map, contour, -1, 255, 20)
+            cv2.drawContours(contours_map, contour, -1, 255, 5)
             cv2.drawContours(track_map, [contour], -1, n, -1)
             cv2.drawContours(areas_map, [contour], -1, area, -1)
             areas.append(cv2.contourArea(contour))
@@ -52,7 +52,7 @@ def countourer(values, kernelv, threshv,  area_lim=100):
     return contours_map, track_map, areas_map, thresh, contours
 
 
-def main():
+def object_tracker():
     kernel = 1
 
     threshv = 1
@@ -60,37 +60,44 @@ def main():
 
     file=   m.NC_PATH+m.FOLDER+'_output.nc'
     ds=xr.open_dataset(file)
-    #ds=ds.reindex(lat=list(reversed(ds.lat)))
     ct = CentroidTracker()
-
+    
+    for time in  ds['time'].values[:2]:
+        ds_clouds= ds[['cloud_top_pressure','pressure_vel']].sel(time=time)
+        ds_clouds=ds_clouds.fillna(0)
+        values =ds_clouds['cloud_top_pressure'].values
+        values = np.squeeze(values)
+        frame=np.zeros_like(values)
+        contours_map, track_map, areas_map, thresh, contours= countourer(values, kernel, threshv)
+        objects = ct.update(contours)
+        for (objectID, centroid) in objects.items():
+            #print(centroid)
+            cv2.circle(frame, (centroid[0], centroid[1]), 5,  255, -1)
+            text = str(objectID)
+            cv2.putText(frame, text, (centroid[0] - 10, centroid[1] - 10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2, False)
+        #frame = frame[::-1,:] 
+    
+        cv2.imwrite("square_circle_opencv.jpg",frame)
+        ds_clouds['contours_map']=(['lat','lon'], contours_map)
+        ds_clouds['areas_map']=(['lat','lon'], areas_map)
+        ds_clouds['track_map']=(['lat','lon'], track_map)
+        ds_clouds['thresh_map']=(['lat','lon'], thresh)
+        ds_clouds['centroids']=(['lat','lon'], frame)
+        
+        ds_clouds=ds_clouds.sel(lat=slice(20,25), lon=slice(-91,-80))
+        
+        c.map_plotter(ds_clouds, 'cloud_top_pressure_','cloud_top_pressure', units_label='hpa')
+        c.map_plotter(ds_clouds, 'contours_','track_map')
+        c.map_plotter(ds_clouds, 'contours_','centroids')
+    
+        #c.map_plotter(ds_clouds, 'contours_','thresh_map')
+    
 
     
 
-    ds_clouds= ds[['cloud_top_pressure','pressure_vel']].sel(time=ds['time'].values[0])
-    ds_clouds=ds_clouds.fillna(0)
-    values =ds_clouds['cloud_top_pressure'].values
-    values = np.squeeze(values)
-
-    contours_map, track_map, areas_map, thresh, contours= countourer(values, kernel, threshv)
-    objects = ct.update(contours)
-    for (objectID, centroid) in objects.items():
-        #cv2.putText(frame, text, (centroid[0] - 10, centroid[1] - 10),
-		#cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
-		cv2.circle(frame, (centroid[0], centroid[1]), 4, (0, 255, 0), -1)
-    cv2.imshow("Frame", frame)
+def main():
+    object_tracker()
     
-    ds_clouds['contours_map']=(['lat','lon'], contours_map)
-    ds_clouds['areas_map']=(['lat','lon'], areas_map)
-    ds_clouds['track_map']=(['lat','lon'], track_map)
-    ds_clouds['thresh_map']=(['lat','lon'], thresh)
-    #ds_clouds=ds_clouds.sel(lat=slice(20,22), lon=slice(-91,-88))
-    #ds_clouds=ds_clouds.reindex(lat=list(reversed(ds.lat)))
-    ds_clouds=ds_clouds.sel(lat=slice(2,21.75), lon=slice(-91,-88))
-
-    #c.map_plotter(ds_clouds, 'cloud_top_pressure_','cloud_top_pressure', units_label='hpa')
-    c.map_plotter(ds_clouds, 'contours_','areas_map')
-    #c.map_plotter(ds_clouds, 'contours_','thresh_map')
-
-
 if __name__ == "__main__":
     main()
