@@ -4,6 +4,7 @@ from collections import OrderedDict
 import numpy as np
 import cv2
 
+
 class CentroidTracker():
     def __init__(self, maxDisappeared=50):
         # initialize the next unique object ID along with two ordered
@@ -12,6 +13,7 @@ class CentroidTracker():
         # been marked as "disappeared", respectively
         self.nextObjectID = 0
         self.objects = OrderedDict()
+        self.contours=OrderedDict()
         self.disappeared = OrderedDict()
 
         # store the number of maximum consecutive frames a given
@@ -19,10 +21,12 @@ class CentroidTracker():
         # need to deregister the object from tracking
         self.maxDisappeared = maxDisappeared
 
-    def register(self, centroid):
+    def register(self, centroid, contour):
         # when registering an object we use the next available object
         # ID to store the centroid
         self.objects[self.nextObjectID] = centroid
+        self.contours[self.nextObjectID] = contour
+
         self.disappeared[self.nextObjectID] = 0
         self.nextObjectID += 1
 
@@ -30,6 +34,7 @@ class CentroidTracker():
         # to deregister an object ID we delete the object ID from
         # both of our respective dictionaries
         del self.objects[objectID]
+        del self.contours[objectID]
         del self.disappeared[objectID]
 
     def update(self, rects):
@@ -53,22 +58,21 @@ class CentroidTracker():
 
         # initialize an array of input centroids for the current frame
         inputCentroids = np.zeros((len(rects), 2), dtype="int")
-
-        # loop over the bounding box rectangles
+        inputContours = []
         for i, contour in enumerate(rects):
             # use the bounding box coordinates to derive the centroid
             M=cv2.moments(contour)
             cX=int(M['m10']/M['m00'])
             cY=int(M['m01']/M['m00'])
-   
-           
             inputCentroids[i] = (cX, cY)
+            inputContours.append(contour)
+
 
         # if we are currently not tracking any objects take the input
         # centroids and register each of them
         if len(self.objects) == 0:
             for i in range(0, len(inputCentroids)):
-                self.register(inputCentroids[i])
+                self.register(inputCentroids[i], inputContours[i])
 
         # otherwise, are are currently tracking objects so we need to
         # try to match the input centroids to existing object
@@ -77,6 +81,7 @@ class CentroidTracker():
             # grab the set of object IDs and corresponding centroids
             objectIDs = list(self.objects.keys())
             objectCentroids = list(self.objects.values())
+            objectContours=list(self.contours.values())
 
             # compute the distance between each pair of object
             # centroids and input centroids, respectively -- our
@@ -116,6 +121,7 @@ class CentroidTracker():
                 # counter
                 objectID = objectIDs[row]
                 self.objects[objectID] = inputCentroids[col]
+                self.contours[objectID] = inputContours[col]
                 self.disappeared[objectID] = 0
 
                 # indicate that we have examined each of the row and
@@ -151,7 +157,7 @@ class CentroidTracker():
             # register each new input centroid as a trackable object
             else:
                 for col in unusedCols:
-                    self.register(inputCentroids[col])
+                    self.register(inputCentroids[col], inputContours[col])
 
         # return the set of trackable objects
-        return self.objects
+        return self.objects, self.contours 

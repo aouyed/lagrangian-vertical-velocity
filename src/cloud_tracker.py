@@ -12,6 +12,9 @@ import xarray as xr
 import main as m 
 import calculators as c
 from centroidtracker import CentroidTracker
+from PIL import Image, ImageFont, ImageDraw
+
+
 
 
 def countourer(values, kernelv, threshv,  area_lim=100):
@@ -20,12 +23,19 @@ def countourer(values, kernelv, threshv,  area_lim=100):
     _, thresh = cv2.threshold(values.copy(), threshv, 255,cv2.THRESH_BINARY)
     thresh = thresh.astype(np.uint8)
     kernel = np.ones((kernelv, kernelv), np.uint8)
-    #thresh=cv2.blur(thresh,(8,8))
+    thresh = cv2.dilate(thresh, kernel, iterations=1)    #thresh=cv2.blur(thresh,(8,8))
     #thresh = cv2.dilate(thresh, kernel, iterations=1)
 
     contours, hierarchy = cv2.findContours(
-        thresh.copy(), cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)
-
+        thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    
+    dummy_c=[]
+    for contour in contours:
+        M=cv2.moments(contour)
+        if M['m00'] >0:
+            dummy_c.append(contour)
+            
+    contours=dummy_c
     # print(np.shape(thresh))
     contours_map = np.zeros(thresh.shape)
     track_map = np.zeros(thresh.shape)
@@ -53,51 +63,75 @@ def countourer(values, kernelv, threshv,  area_lim=100):
 
 
 def object_tracker():
-    kernel = 1
-
+    kernel = 10
     threshv = 1
+    
     print('begin dataframe construction...')
 
     file=   m.NC_PATH+m.FOLDER+'_output.nc'
     ds=xr.open_dataset(file)
     ct = CentroidTracker()
-    
-    for time in  ds['time'].values[:2]:
+    ds_total=xr.Dataset()
+    new_cmap = c.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
+
+    for i, time in  enumerate(ds['time'].values[:3]):
         ds_clouds= ds[['cloud_top_pressure','pressure_vel']].sel(time=time)
         ds_clouds=ds_clouds.fillna(0)
         values =ds_clouds['cloud_top_pressure'].values
         values = np.squeeze(values)
-        frame=np.zeros_like(values)
+        id_map=np.zeros_like(values)
+        text_map=np.zeros_like(values)
         contours_map, track_map, areas_map, thresh, contours= countourer(values, kernel, threshv)
-        objects = ct.update(contours)
+        objects, contours = ct.update(contours)
+        for (objectID, contour) in contours.items():
+            cv2.drawContours(id_map, [contour], -1, objectID, -1)
+
+           
         for (objectID, centroid) in objects.items():
             #print(centroid)
-            cv2.circle(frame, (centroid[0], centroid[1]), 5,  255, -1)
             text = str(objectID)
-            cv2.putText(frame, text, (centroid[0] - 10, centroid[1] - 10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.5, 255, 2, False)
-        #frame = frame[::-1,:] 
-    
-        cv2.imwrite("square_circle_opencv.jpg",frame)
+            cv2.putText(text_map, text, (centroid[0], centroid[1]),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.25, 255, 1, False)
+            
         ds_clouds['contours_map']=(['lat','lon'], contours_map)
         ds_clouds['areas_map']=(['lat','lon'], areas_map)
         ds_clouds['track_map']=(['lat','lon'], track_map)
+        ds_clouds['id_map']=(['lat','lon'], id_map)
+        ds_clouds['text_map']=(['lat','lon'], text_map)
+
+
         ds_clouds['thresh_map']=(['lat','lon'], thresh)
-        ds_clouds['centroids']=(['lat','lon'], frame)
         
-        ds_clouds=ds_clouds.sel(lat=slice(20,25), lon=slice(-91,-80))
+        if ds_total:
+            ds_total=xr.concat([ds_total,ds_clouds],'time' )
+        else:
+            ds_total=ds_clouds
         
-        c.map_plotter(ds_clouds, 'cloud_top_pressure_','cloud_top_pressure', units_label='hpa')
-        c.map_plotter(ds_clouds, 'contours_','track_map')
-        c.map_plotter(ds_clouds, 'contours_','centroids')
+
+        ds_clouds=ds_clouds.sel(lat=slice(10,25), lon=slice(-91,-80))
+        ids=ds_clouds.id_map.values
+        ids=np.nan_to_num(ids)
+        values, counts = np.unique(ids, return_counts=True)
+        count_sort_ind = np.argsort(-counts)
+        print(values[count_sort_ind])
+        print(counts[count_sort_ind])
+        #ds_clouds=ds_clouds.where(ds_clouds.id_map==100)
+       
+
+        c.map_plotter(ds_clouds, 'cloud_top_pressure_'+str(i),'cloud_top_pressure', units_label='hpa')
+        c.map_plotter(ds_clouds, 'contours_id_'+str(i),'id_map',cmap=new_cmap, vmin=0,vmax=1000)
+        c.map_plotter(ds_clouds, 'contours_text'+str(i),'text_map')
+
+    return ds_total
+        
     
-        #c.map_plotter(ds_clouds, 'contours_','thresh_map')
     
 
     
 
 def main():
-    object_tracker()
+    ds_total=object_tracker()
+    print(ds_total)
     
 if __name__ == "__main__":
     main()
