@@ -1,0 +1,2 @@
+KERNEL= 10
+THRESH = 1
