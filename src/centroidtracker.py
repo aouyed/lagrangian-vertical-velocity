@@ -4,7 +4,6 @@ from collections import OrderedDict
 import numpy as np
 import cv2
 
-
 class CentroidTracker():
     def __init__(self, maxDisappeared=50):
         # initialize the next unique object ID along with two ordered

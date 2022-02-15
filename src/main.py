@@ -62,6 +62,9 @@ def plot_loop(ds, var, func, vmin, vmax, cmap,scatterv):
         print(date)
         ds_unit=ds.sel(time=date)
         ax, fig, im =func(ds_unit, ds_unit[var].values, vmin,vmax,date, ax, fig, cmap,scatterv)
+        ax.text(0.5, 1.01, np.datetime_as_string(date, timezone='UTC'),
+                transform=ax.transAxes)
+
         camera.snap()
     if func != calc.marginal_an:    
         cbar=plt.colorbar(im)

@@ -13,6 +13,7 @@ import main as m
 import calculators as c
 import config as config 
 from centroidtracker import CentroidTracker
+import main as m 
 
 
 def contour_filter(contours):
@@ -25,15 +26,13 @@ def contour_filter(contours):
     contours=dummy_c
     return contours
     
-
-
 def countourer(values, kernelv, threshv,  area_lim=100):
     values = cv2.blur(values, (10, 10))
 
     _, thresh = cv2.threshold(values.copy(), threshv, 255,cv2.THRESH_BINARY)
     thresh = thresh.astype(np.uint8)
     kernel = np.ones((kernelv, kernelv), np.uint8)
-    thresh = cv2.dilate(thresh, kernel, iterations=1)    
+    #thresh = cv2.dilate(thresh, kernel, iterations=1)    
 
     contours, hierarchy = cv2.findContours(
         thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -54,17 +53,27 @@ def contour_drawer(contours, objects, ds_clouds):
     values = np.squeeze(values)  
     id_map=np.zeros_like(values)
     text_map=np.zeros_like(values)
+    area_map=np.zeros_like(values)
+
     for (objectID, contour) in contours.items():
             cv2.drawContours(id_map, [contour], -1, objectID, -1)
+            area = cv2.contourArea(contour)
+            cv2.drawContours(area_map, [contour], -1, area, -1)
 
+            
            
     for (objectID, centroid) in objects.items():
          text = str(objectID)
          cv2.putText(text_map, text, (centroid[0], centroid[1]),
                      cv2.FONT_HERSHEY_SIMPLEX, 0.25, 255, 1, False)
+    threshv = config.THRESH
+    _, thresh = cv2.threshold(values.copy(), threshv, 255,cv2.THRESH_BINARY)
+    ds_clouds['thresh_map']=(['lat','lon'], thresh)
 
     ds_clouds['id_map']=(['lat','lon'], id_map)
     ds_clouds['text_map']=(['lat','lon'], text_map)
+    ds_clouds['area_map']=(['lat','lon'],area_map)
+
     return ds_clouds
 
 def contour_loop(ds):
@@ -74,11 +83,10 @@ def contour_loop(ds):
     ds_total=xr.Dataset()
     new_cmap = c.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
 
-    for i, time in  enumerate(ds['time'].values[:3]):
+    for i, time in  enumerate(ds['time'].values):
+        print(time)
         ds_clouds= ds[['cloud_top_pressure','pressure_vel']].sel(time=time)
         ds_clouds=ds_clouds.fillna(0)
-
-   
         values =ds_clouds['cloud_top_pressure'].values
         values = np.squeeze(values)    
         contours= countourer(values, kernel, threshv)
@@ -90,18 +98,33 @@ def contour_loop(ds):
             ds_total=xr.concat([ds_total,ds_clouds],'time' )
         else:
             ds_total=ds_clouds
+    
+    return ds_total, new_cmap
        
 
 def object_tracker():
     file=   m.NC_PATH+m.FOLDER+'_output.nc'
     ds=xr.open_dataset(file)
-    ds_total=contour_loop(ds)  
+    ds_total, cmap =contour_loop(ds)  
+    ds_total.to_netcdf('../data/processed/tracked.nc')
+    #m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER)
+   
+
     return ds_total
         
 
 
 def main():
-    ds_total=object_tracker()
+    #ds_total=object_tracker()
+    ds_total=xr.open_dataset('../data/processed/tracked.nc')
+    print(ds_total)
+    cmap = c.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
+    #ds_total=ds_total.sel(lat=slice(19,30), lon=slice(-91,-88))
+    ds_total=ds_total.sel(lat=slice(19,30))
+    m.plot_loop(ds_total, 'thresh_map', c.implot, 0, 255,'viridis',m.FOLDER)
+    m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER)
+    m.plot_loop(ds_total, 'area_map', c.implot, 0, 1e4,'viridis',m.FOLDER)
+
     print(ds_total)
     
 if __name__ == "__main__":
