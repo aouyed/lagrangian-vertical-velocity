@@ -9,11 +9,13 @@ Created on Tue Feb  8 13:57:26 2022
 import cv2
 import numpy as np
 import xarray as xr
+import pandas as pd
 import main as m 
 import calculators as c
 import config as config 
 from centroidtracker import CentroidTracker
 import main as m 
+import matplotlib.pyplot as plt
 
 
 def contour_filter(contours):
@@ -111,6 +113,36 @@ def object_tracker():
    
 
     return ds_total
+
+
+def time_series(ds_total):
+    data={'time':[], 'area':[],'pressure_vel':[],'pressure_ten':[],'cloud_top_pressure':[]}
+    for time in ds_total['time'].values:
+        ds=ds_total.sel(time = time)
+        area=ds['size_map'].mean().item()
+        pressure_vel=ds['pressure_vel'].mean().item()
+        pressure_t=ds['pressure_tendency'].mean().item()
+
+        pressure=ds['cloud_top_pressure'].mean().item()
+        data['time'].append(time)
+        data['area'].append(area)
+        data['pressure_vel'].append(pressure_vel)
+        data['pressure_ten'].append(pressure_t)
+
+        data['cloud_top_pressure'].append(pressure)
+
+    df=pd.DataFrame(data)
+    df=df.dropna().set_index('time')
+    plt.plot(df[['pressure_ten','pressure_vel']])
+    plt.show()
+    print(df[['area','pressure_vel','pressure_ten']].dropna())
+    return df    
+        
+        
+        
+        
+        
+    
         
 
 
@@ -125,13 +157,15 @@ def main():
     ds_total['pressure_vel']=100*ds_total['pressure_vel']
     ds_total['pressure_tendency']=100*ds_total['pressure_tendency']
     
-    time=ds_total['time'].values[1]
+    time=ds_total['time'].values[16]
     ds=ds_total.sel(time=time)
     ids=ds['id_map'].values
     ids, id_counts=np.unique(ids, return_counts=True)
     print(ids)
     print(id_counts)
+
     ds_total=ds_total.where(ds_total.id_map==ids[3])
+    df=time_series(ds_total)
 
     m.plot_loop(ds_total, 'thresh_map', c.implot, 0, 255,'viridis',m.FOLDER)
     m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER)
