@@ -85,7 +85,7 @@ def contour_loop(ds):
 
     for i, time in  enumerate(ds['time'].values):
         print(time)
-        ds_clouds= ds[['cloud_top_pressure','pressure_vel']].sel(time=time)
+        ds_clouds= ds[['cloud_top_pressure','pressure_vel','pressure_tendency','flow_x','flow_y']].sel(time=time)
         ds_clouds=ds_clouds.fillna(0)
         values =ds_clouds['cloud_top_pressure'].values
         values = np.squeeze(values)    
@@ -119,11 +119,26 @@ def main():
     ds_total=xr.open_dataset('../data/processed/tracked.nc')
     print(ds_total)
     cmap = c.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
-    #ds_total=ds_total.sel(lat=slice(19,30), lon=slice(-91,-88))
-    ds_total=ds_total.sel(lat=slice(19,30))
+    ds_total=ds_total.sel(lat=slice(21,23), lon=slice(-91,-88))
+    #ds_total=ds_total.sel(lat=slice(19,30))
+    ds_total['size_map']=np.sqrt(ds_total.area_map)
+    ds_total['pressure_vel']=100*ds_total['pressure_vel']
+    ds_total['pressure_tendency']=100*ds_total['pressure_tendency']
+    
+    time=ds_total['time'].values[1]
+    ds=ds_total.sel(time=time)
+    ids=ds['id_map'].values
+    ids, id_counts=np.unique(ids, return_counts=True)
+    print(ids)
+    print(id_counts)
+    ds_total=ds_total.where(ds_total.id_map==ids[3])
+
     m.plot_loop(ds_total, 'thresh_map', c.implot, 0, 255,'viridis',m.FOLDER)
     m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER)
-    m.plot_loop(ds_total, 'area_map', c.implot, 0, 1e4,'viridis',m.FOLDER)
+    m.plot_loop(ds_total, 'size_map', c.implot, 0, 100,'viridis',m.FOLDER)
+    m.plot_loop(ds_total, 'pressure_vel', c.implot, -2, 2,'RdBu',m.FOLDER)
+    m.plot_loop(ds_total, 'pressure_tendency', c.implot, -2, 2,'RdBu',m.FOLDER)
+    m.plot_loop(ds_total, 'cloud_top_pressure', c.implot, 0, 1000,'viridis',m.FOLDER)
 
     print(ds_total)
     
