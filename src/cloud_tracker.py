@@ -34,7 +34,6 @@ def countourer(values, kernelv, threshv,  area_lim=100):
     _, thresh = cv2.threshold(values.copy(), threshv, 255,cv2.THRESH_BINARY)
     thresh = thresh.astype(np.uint8)
     kernel = np.ones((kernelv, kernelv), np.uint8)
-    #thresh = cv2.dilate(thresh, kernel, iterations=1)    
 
     contours, hierarchy = cv2.findContours(
         thresh.copy(), cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
@@ -115,57 +114,69 @@ def object_tracker():
     return ds_total
 
 
-def time_series(ds_total):
-    data={'time':[], 'area':[],'pressure_vel':[],'pressure_ten':[],'cloud_top_pressure':[]}
+def time_loop(data, ds_total, idno):
     for time in ds_total['time'].values:
-        ds=ds_total.sel(time = time)
+        ds=ds_total.sel(time = time)     
         area=ds['size_map'].mean().item()
         pressure_vel=ds['pressure_vel'].mean().item()
         pressure_t=ds['pressure_tendency'].mean().item()
-
+    
         pressure=ds['cloud_top_pressure'].mean().item()
         data['time'].append(time)
-        data['area'].append(area)
+        data['id'].append(idno)
+        data['size'].append(area)
         data['pressure_vel'].append(pressure_vel)
         data['pressure_ten'].append(pressure_t)
-
-        data['cloud_top_pressure'].append(pressure)
-
-    df=pd.DataFrame(data)
-    df=df.dropna().set_index('time')
-    plt.plot(df[['pressure_ten','pressure_vel']])
-    plt.show()
-    print(df[['area','pressure_vel','pressure_ten']].dropna())
-    return df    
-        
-        
-        
-        
-        
     
+        data['cloud_top_pressure'].append(pressure)
+    return data
+
+
+def time_series(ds_total, ids):
+    data={'time':[], 'id':[],'size':[],'pressure_vel':[],'pressure_ten':[],'cloud_top_pressure':[]}
+
+    for idno in ids[ids!=0]: 
+        print(idno)
+        ds=ds_total.where(ds_total.id_map==idno)
+        data=time_loop(data, ds, idno)
+            
+            
+        
+    df=pd.DataFrame(data)
+    df=df.set_index(['time','id'])
+    ds_time_series=xr.Dataset.from_dataframe(df)
+    return ds_time_series    
         
 
-
+def time_series_plotter(ds, label):
+    fig, ax= plt.subplots()
+    for idno in ds['id'].values:
+        ds_unit=ds.sel(id=idno)
+        ax.plot(ds_unit['time'].values,ds_unit[label],label= str(idno))
+    ax.legend()
+    ax.set_ylim(0,150)
+    plt.show()
+    plt.close()
 def main():
     #ds_total=object_tracker()
     ds_total=xr.open_dataset('../data/processed/tracked.nc')
     print(ds_total)
-    cmap = c.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
-    ds_total=ds_total.sel(lat=slice(21,23), lon=slice(-91,-88))
-    #ds_total=ds_total.sel(lat=slice(19,30))
+    
     ds_total['size_map']=np.sqrt(ds_total.area_map)
     ds_total['pressure_vel']=100*ds_total['pressure_vel']
     ds_total['pressure_tendency']=100*ds_total['pressure_tendency']
     
-    time=ds_total['time'].values[16]
-    ds=ds_total.sel(time=time)
-    ids=ds['id_map'].values
-    ids, id_counts=np.unique(ids, return_counts=True)
-    print(ids)
-    print(id_counts)
+  
+    ds_tropics=ds_total.sel(lat=slice(21,23), lon=slice(-91,-88))
+    ids=np.unique(ds_tropics['id_map'].values)
 
-    ds_total=ds_total.where(ds_total.id_map==ids[3])
-    df=time_series(ds_total)
+    #ds_time_series=time_series(ds_total, ids)
+    #ds_time_series.to_netcdf('../data/processed/time_series.nc')
+    ds_time_series=xr.open_dataset('../data/processed/time_series.nc')
+    time_series_plotter(ds_time_series, 'size')
+    breakpoint()
+    
+    
 
     m.plot_loop(ds_total, 'thresh_map', c.implot, 0, 255,'viridis',m.FOLDER)
     m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER)

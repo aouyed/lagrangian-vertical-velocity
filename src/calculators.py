@@ -34,7 +34,7 @@ NC_PATH='../data/processed/netcdf/'
 flow_var=''
 DATE_FORMAT="%m/%d/%Y, %H:%M:%S"
 
-def rand_cmap(nlabels, type='bright', first_color_black=True, last_color_black=False, verbose=True):
+def rand_cmap(nlabels, type='bright', first_color_black=True, last_color_black=False, verbose=False):
     """
     Creates a random colormap to be used together with matplotlib. Useful for segmentation tasks
     :param nlabels: Number of labels (size of colormap)
