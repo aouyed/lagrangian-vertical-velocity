@@ -16,6 +16,7 @@ import config as config
 from centroidtracker import CentroidTracker
 import main as m 
 import matplotlib.pyplot as plt
+from tqdm import tqdm
 
 
 def contour_filter(contours):
@@ -117,11 +118,11 @@ def object_tracker():
 def time_loop(data, ds_total, idno):
     for time in ds_total['time'].values:
         ds=ds_total.sel(time = time)     
-        area=ds['size_map'].mean().item()
-        pressure_vel=ds['pressure_vel'].mean().item()
-        pressure_t=ds['pressure_tendency'].mean().item()
+        area=ds['size_map'].median().item()
+        pressure_vel=ds['pressure_vel'].median().item()
+        pressure_t=ds['pressure_tendency'].median().item()
     
-        pressure=ds['cloud_top_pressure'].mean().item()
+        pressure=ds['cloud_top_pressure'].median().item()
         data['time'].append(time)
         data['id'].append(idno)
         data['size'].append(area)
@@ -135,8 +136,7 @@ def time_loop(data, ds_total, idno):
 def time_series(ds_total, ids):
     data={'time':[], 'id':[],'size':[],'pressure_vel':[],'pressure_ten':[],'cloud_top_pressure':[]}
 
-    for idno in ids[ids!=0]: 
-        print(idno)
+    for idno in tqdm(ids[ids!=0]): 
         ds=ds_total.where(ds_total.id_map==idno)
         data=time_loop(data, ds, idno)
             
@@ -145,18 +145,43 @@ def time_series(ds_total, ids):
     df=pd.DataFrame(data)
     df=df.set_index(['time','id'])
     ds_time_series=xr.Dataset.from_dataframe(df)
+    
     return ds_time_series    
         
 
 def time_series_plotter(ds, label):
     fig, ax= plt.subplots()
     for idno in ds['id'].values:
-        ds_unit=ds.sel(id=idno)
-        ax.plot(ds_unit['time'].values,ds_unit[label],label= str(idno))
+        if idno==137:
+            ds_unit=ds.sel(id=idno)
+            ax.plot(ds_unit['time'].values,ds_unit[label],label= str(idno))
     ax.legend()
-    ax.set_ylim(0,150)
+    #ax.set_ylim(0,150)
     plt.show()
     plt.close()
+    
+    
+def scatter_plot(ds, label):
+    df=ds.to_dataframe().reset_index()
+    fig, ax= plt.subplots()
+    ax.scatter(df[label],df['pressure_vel'])
+    ax.scatter(df[label],df['pressure_ten'])
+    
+    if label is 'size':
+        ax.set_xlim(0,200)
+
+    plt.show()
+    plt.close()
+    
+    
+def scatter_general(ds, labelx, labely):
+    df=ds.to_dataframe().reset_index()
+    fig, ax= plt.subplots()
+    ax.scatter(df[labelx],df[labely])
+    plt.show()
+    plt.close()
+    
+    
 def main():
     #ds_total=object_tracker()
     ds_total=xr.open_dataset('../data/processed/tracked.nc')
@@ -165,18 +190,24 @@ def main():
     ds_total['size_map']=np.sqrt(ds_total.area_map)
     ds_total['pressure_vel']=100*ds_total['pressure_vel']
     ds_total['pressure_tendency']=100*ds_total['pressure_tendency']
-    
-  
-    ds_tropics=ds_total.sel(lat=slice(21,23), lon=slice(-91,-88))
-    ids=np.unique(ds_tropics['id_map'].values)
+    ids=np.unique(ds_total['id_map'].values)
 
-    #ds_time_series=time_series(ds_total, ids)
-    #ds_time_series.to_netcdf('../data/processed/time_series.nc')
-    ds_time_series=xr.open_dataset('../data/processed/time_series.nc')
-    time_series_plotter(ds_time_series, 'size')
+    ds_time_series=time_series(ds_total, ids)
+    ds_time_series.to_netcdf('../data/processed/time_series_complete_median.nc')
+    ds_time_series=xr.open_dataset('../data/processed/time_series_complete_median.nc')
+    ds_time_series=ds_time_series.rolling(time=3, center=True).mean()
+    ds_time_series['size_rate']=ds_time_series['size'].differentiate("time",datetime_unit='h' )
+
+    #time_series_plotter(ds_time_series, 'pressure_vel')
+    #time_series_plotter(ds_time_series, 'size')
+    #time_series_plotter(ds_time_series, 'size_rate')
+    #time_series_plotter(ds_time_series, 'pressure_vel')
+    scatter_plot(ds_time_series, 'size_rate')
+    scatter_plot(ds_time_series, 'size')
+    scatter_plot(ds_time_series, 'cloud_top_pressure')
+    scatter_general(ds_time_series, 'size', 'size_rate')
+
     breakpoint()
-    
-    
 
     m.plot_loop(ds_total, 'thresh_map', c.implot, 0, 255,'viridis',m.FOLDER)
     m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER)
