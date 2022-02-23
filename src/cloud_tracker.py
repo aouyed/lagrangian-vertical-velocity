@@ -217,16 +217,30 @@ def cloud_plotter(da, vmin=-1, vmax=1, cmap='RdBu'):
 
 
 def mean_clouds(ds_time_series, ds_total):
-    ds_total['pressure_vel_mean']=  xr.full_like(ds['pressure_vel'], fill_value=np.nan)
-    ds_total['pressure_ten_mean']=  xr.full_like(ds['pressure_tendency'], fill_value=np.nan)
-    ds_total['pressure_mean']=  xr.full_like(ds['cloud_top_pressure'], fill_value=np.nan)
-    ds_total['pressure_rate']=  xr.full_like(ds['cloud_top_pressure'], fill_value=np.nan)
-    df=ds_total.to_dataframe()
+    ds_total=ds_total[['pressure_vel','pressure_tendency','cloud_top_pressure','id_map']]
+    ds_total['pressure_vel_mean']=  xr.full_like(ds_total['pressure_vel'], fill_value=np.nan)
+    ds_total['pressure_ten_mean']=  xr.full_like(ds_total['pressure_tendency'], fill_value=np.nan)
+    ds_total['pressure_mean']=  xr.full_like(ds_total['cloud_top_pressure'], fill_value=np.nan)
+    ds_total['pressure_rate']=  xr.full_like(ds_total['cloud_top_pressure'], fill_value=np.nan)
+    df=ds_total[['pressure_vel_mean','pressure_ten_mean','pressure_rate','pressure_mean']].to_dataframe()
     for time in ds_time_series['time'].values:
-            for idno in ds_time_series['id'].values:
+        ds=ds_total.sel(time=time)
+        for idno in ds_time_series['id'].values:
+            ds_id=ds.where(ds.id_map==idno)
+            if  not np.isnan(ds_id['id_map'].values).all():
+                df_id=ds_id.to_dataframe().dropna(subset=['id_map'])
+                df_id=df_id.reset_index().set_index(['lat','lon','time'])
+                indexes=df_id.index.values 
+                df['pressure_mean'].loc[df.index.isin(indexes)]=df_id['cloud_top_pressure'].mean()
+            breakpoint()
+                
+                
+                
                 
 
-        
+            
+            
+
         
     
     
@@ -296,7 +310,8 @@ def main():
     #time_series_plotter(ds_time_series, 'size_rate')
     #time_series_plotter(ds_time_series, 'pressure_vel')
     scatter_plot(ds_time_series, 'size_rate')
-    analyzer(ds_time_series, ds_total)
+    #analyzer(ds_time_series, ds_total)
+    mean_clouds(ds_time_series, ds_total)
     #scatter_plot(ds_time_series, 'size')
     #scatter_plot(ds_time_series, 'cloud_top_pressure')
     
