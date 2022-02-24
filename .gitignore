@@ -5,3 +5,6 @@
 *.avi
 ^.mp4
 *.png
+*.pkl
+*.p
+*.pl
