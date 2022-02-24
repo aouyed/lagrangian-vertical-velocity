@@ -236,32 +236,27 @@ def cloud_plotter(da, vmin=-1, vmax=1, cmap='RdBu'):
 
 
 def mean_clouds(ds_time_series,ds_cloud, ds_contours):
-    labels=['pressure_vel','pressure_ten','cloud_top_pressure']
+    labels=['pressure_vel','pressure_ten','cloud_top_pressure','pressure_adv','pressure_rate']
     ds_total=xr.Dataset()
     for date in tqdm(ds_contours['date'].values):
+        image_di={}
         ds_unit=ds_cloud.sel(time=date)
-        pressure_mean_map=np.zeros_like(ds_unit['cloud_top_pressure'].values)
-        pressure_vel_mean_map=np.zeros_like(ds_unit['cloud_top_pressure'].values)
-        pressure_ten_mean_map=np.zeros_like(ds_unit['cloud_top_pressure'].values)
-        pressure_rate_mean_map=np.zeros_like(ds_unit['cloud_top_pressure'].values)
-        pressure_adv_mean_map=np.zeros_like(ds_unit['cloud_top_pressure'].values)
-
+        for label in labels:
+            image_di[label]=np.zeros_like(ds_unit['cloud_top_pressure'].values)
         for idno in ds_contours['id'].values[ds_contours['id'].values>0]:
             da=ds_contours.sel(date=date, id=idno)
             contour=da['contour'].values
             contour=np.squeeze(contour).item()
             ds_time=ds_time_series.sel(id=idno, time=date)   
             try:
-                cv2.drawContours(pressure_mean_map, [contour], -1,ds_time['cloud_top_pressure'].values.item(), -1)
-                cv2.drawContours(pressure_vel_mean_map, [contour], -1,ds_time['pressure_vel'].values.item(), -1)
-                cv2.drawContours(pressure_ten_mean_map, [contour], -1,ds_time['pressure_ten'].values.item(), -1)
-                cv2.drawContours(pressure_rate_mean_map, [contour], -1,ds_time['pressure_rate'].values.item(), -1)
-                cv2.drawContours(pressure_adv_mean_map, [contour], -1,ds_time['pressure_adv'].values.item(), -1)
+                for label in image_di:
+                    cv2.drawContours(image_di[label], [contour], -1,ds_time[label].values.item(), -1)
 
             except:
                 print("bad contour value:")
                 print(contour)
-        ds_unit['pressure_mean_map']=(['lat','lon'], pressure_mean_map)
+        for  label in image_di:
+            ds_unit[label+'_mean']=(['lat','lon'], image_di[label])
         ds_unit=ds_unit.expand_dims('time')
         if not ds_total:
             ds_total=ds_unit
@@ -306,7 +301,10 @@ def analyzer(ds_time_series, ds_total):
 def animation(ds_total):
     cmap = c.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
 
-    m.plot_loop(ds_total, 'pressure_mean_map', c.implot, 0, 1000,'viridis',m.FOLDER)
+    m.plot_loop(ds_total, 'cloud_top_pressure_mean', c.implot, 0, 1000,'viridis',m.FOLDER)
+    m.plot_loop(ds_total, 'pressure_vel_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER)
+    m.plot_loop(ds_total, 'pressure_ten_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER)
+    m.plot_loop(ds_total, 'pressure_rate_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER)
     m.plot_loop(ds_total, 'thresh_map', c.implot, 0, 255,'viridis',m.FOLDER)
     m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER)
     m.plot_loop(ds_total, 'size_map', c.implot, 0, 100,'viridis',m.FOLDER)
@@ -347,6 +345,7 @@ def main():
     #ds_total, ds_contours, df=object_tracker()
     #post_processing()
     ds_total=xr.open_dataset('../data/processed/means.nc')
+    ds_total=ds_total.sel(lat=slice(0,25))
     animation(ds_total)
     
     
