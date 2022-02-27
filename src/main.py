@@ -61,7 +61,9 @@ def plot_loop(ds, var, func, vmin, vmax, cmap,scatterv):
     for date in dates:
         print(date)
         ds_unit=ds.sel(time=date)
-        ax, fig, im =func(ds_unit, ds_unit[var].values, vmin,vmax,date, ax, fig, cmap,scatterv)
+        values=ds_unit[var].values
+        values[values==0]=np.nan
+        ax, fig, im =func(ds_unit, values, vmin,vmax,date, ax, fig, cmap,scatterv)
         ax.text(0.5, 1.01, np.datetime_as_string(date, timezone='UTC'),
                 transform=ax.transAxes)
 
