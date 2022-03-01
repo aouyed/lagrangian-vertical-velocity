@@ -122,7 +122,7 @@ def quiver_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):
     ax, fig, im=implot(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv)
     #ds=ds.coarsen(lat=3, boundary='trim').mean().coarsen(lon=3, boundary='trim').mean()
     X,Y=np.meshgrid(ds['lon'].values,ds['lat'].values)
-    Q = ax.quiver(X,Y, np.squeeze(ds['flow_x'].values), np.squeeze(ds['flow_y'].values))
+    Q = ax.quiver(X,Y, np.squeeze(ds['u'].values), np.squeeze(ds['v'].values))
     return   ax, fig, im
 
 def scatter_hybrid(ds, values, vmin, vmax, date,ax, fig, cmap, scatterv):

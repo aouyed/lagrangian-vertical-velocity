@@ -12,6 +12,7 @@ import xarray as xr
 import pandas as pd
 import main as m 
 import calculators as c
+import kinematics_tracker as kt
 import config as config 
 from centroidtracker import CentroidTracker
 import main as m 
@@ -20,7 +21,7 @@ from tqdm import tqdm
 import pickle 
 from scipy import stats
 
-
+IDS=[113, 114, 115, 117, 118, 120, 125, 131]
 
 def contour_filter(contours):
     dummy_c=[]
@@ -134,42 +135,48 @@ def object_tracker():
     return ds_total, ds_contours, df 
 
 
-def time_loop(data, ds_total, idno, median):
+def time_loop(ds_total, idno,labels, data,  median):
+
     for time in ds_total['time'].values:
         ds=ds_total.sel(time = time)     
-        area=ds['size_map'].median().item()
-        if median:
-            pressure_vel=ds['pressure_vel'].median().item()
-            pressure_t=ds['pressure_tendency'].median().item()
-            pressure=ds['cloud_top_pressure'].median().item()
-        else:
-            pressure_vel=ds['pressure_vel'].mean().item()
-            pressure_t=ds['pressure_tendency'].mean().item()
-            pressure=ds['cloud_top_pressure'].mean().item()
+        for label in labels:
+            if median:
+                values=ds[label].median().item()
+                data[label].append(values)
+                #pressure_vel=ds['pressure_vel'].median().item()
+                #pressure_t=ds['pressure_tendency'].median().item()
+                #pressure=ds['cloud_top_pressure'].median().item()
+            else:
+               values=ds[label].mean().item()
+               data[label].append(values)
             
         data['time'].append(time)
-        data['id'].append(idno)
-        data['size'].append(area)
-        data['pressure_vel'].append(pressure_vel)
-        data['pressure_ten'].append(pressure_t)
-    
-        data['cloud_top_pressure'].append(pressure)
+        data['id'].append(idno) 
     return data
 
 
-def time_series_calc(ds_total, ids, median):
-    data={'time':[], 'id':[],'size':[],'pressure_vel':[],'pressure_ten':[],'cloud_top_pressure':[]}
-    
+def time_series_calc(ds_total, ids,labels,  median=False):
+    #data={'time':[], 'id':[],'size':[],'pressure_vel':[],'pressure_ten':[],'cloud_top_pressure':[]}
+    data={}
+    for label in labels:
+        data[label]=[]
+    data['time']=[]
+    data['id']=[]
 
     for idno in tqdm(ids[ids!=0]): 
         ds=ds_total.where(ds_total.id_map==idno)
-        data=time_loop(data, ds, idno, median)
+        data=time_loop( ds,idno,labels,data,  median)
             
             
         
     df=pd.DataFrame(data)
     df=df.set_index(['time','id'])
     ds_time_series=xr.Dataset.from_dataframe(df)
+    stats='median'
+    if  not median:
+        stats='mean'
+  
+    ds_time_series.to_netcdf('../data/processed/time_series_complete_'+stats+'.nc')
     
     return ds_time_series    
 
@@ -178,12 +185,13 @@ def time_series_calc(ds_total, ids, median):
 
 def time_series_plotter(ds, label):
     fig, ax= plt.subplots()
+    #for idno in ds['id'].values:
     for idno in ds['id'].values:
-        if idno==137:
-            ds_unit=ds.sel(id=idno)
-            ax.plot(ds_unit['time'].values,ds_unit[label],label= str(idno))
+        ds_unit=ds.sel(id=idno)
+        ax.plot(ds_unit['time'].values,ds_unit[label])
     ax.legend()
     #ax.set_ylim(0,150)
+    plt.savefig('../data/processed/plots/ts_'+label+'.png', dpi=300)
     plt.show()
     plt.close()
     
@@ -191,9 +199,9 @@ def time_series_plotter(ds, label):
 def scatter_plot(ds, label):
     df=ds.to_dataframe().reset_index()
     df=df.dropna()
-    means_vel, edges, _=stats.binned_statistic(df['size_rate'], df['pressure_vel'], 'mean', bins=20, range=(-10,10))
-    means_ten, edges, _=stats.binned_statistic(df['size_rate'], df['pressure_ten'], 'mean', bins=20, range=(-10,10))
-    means_rate, edges, _=stats.binned_statistic(df['size_rate'], df['pressure_rate'], 'mean', bins=20, range=(-10,10))
+    means_vel, edges, _=stats.binned_statistic(df['size_rate'], df['pressure_vel'], 'mean', bins=10, range=(-10,10))
+    means_ten, edges, _=stats.binned_statistic(df['size_rate'], df['pressure_ten'], 'mean', bins=10, range=(-10,10))
+    means_rate, edges, _=stats.binned_statistic(df['size_rate'], df['pressure_rate'], 'mean', bins=10, range=(-10,10))
 
     edges=edges[1:]
     fig, ax= plt.subplots()
@@ -201,13 +209,8 @@ def scatter_plot(ds, label):
     ax.plot(edges, means_vel)
     ax.plot(edges,means_ten)
     ax.plot(edges,means_rate)
-
-    #ax.scatter(df[label],df['pressure_rate'])
-    #ax.set_xlim(-10,10)
-
     plt.show()
     plt.close()
-    breakpoint()
     
     
 def scatter_general(ds, labelx, labely):
@@ -226,10 +229,7 @@ def time_series(ds_total, median=False):
     ds_time_series=time_series_calc(ds_total, ids, median)
     stats='median'
     
-    if  not median:
-        stats='mean'
-  
-    ds_time_series.to_netcdf('../data/processed/time_series_complete_'+stats+'.nc')
+    
    
 
 def cloud_plotter(da, vmin=-1, vmax=1, cmap='RdBu'):
@@ -241,8 +241,8 @@ def cloud_plotter(da, vmin=-1, vmax=1, cmap='RdBu'):
     plt.close()
 
 
-def mean_clouds(ds_time_series,ds_cloud, ds_contours, string='mean'):
-    labels=['pressure_vel','pressure_ten','cloud_top_pressure','pressure_adv','pressure_rate','size_rate']
+def mean_clouds(ds_time_series,ds_cloud, ds_contours,labels, string='mean'):
+    #labels=['pressure_vel','pressure_ten','cloud_top_pressure','pressure_adv','pressure_rate','size_rate']
     ds_total=xr.Dataset()
     for date in tqdm(ds_contours['date'].values):
         image_di={}
@@ -271,56 +271,25 @@ def mean_clouds(ds_time_series,ds_cloud, ds_contours, string='mean'):
         else:
             ds_total=xr.concat([ds_total, ds_unit], 'time')
     ds_total.to_netcdf('../data/processed/clouds_'+string+'.nc')
+    return ds_total
 
-                            
-
-def analyzer(ds_time_series, ds_total):
-    
-    condition1=ds_time_series.pressure_adv< ds_time_series['pressure_adv'].quantile(0.95).item()
-    #condition2=abs(ds_time_series.size_rate)<
-    ds_sample=ds_time_series
-    scatter_plot(ds_sample, 'size_rate')
-
-    scatter_general(ds_sample, 'size_rate', 'pressure_vel')
-    scatter_general(ds_sample, 'size_rate', 'pressure_ten')
-    scatter_general(ds_sample, 'pressure_vel', 'pressure_rate')
-
-    df=ds_sample.to_dataframe().reset_index().dropna()
-    print(df[['id','size_rate','pressure_adv','size']])
-    ds=ds_total.sel(time=df['time'].values[11])
-    ds=ds.where(ds.id_map==df['id'].values[11])
-    #ds=ds.where(ds.lon >-90)
-    #ds['pressure_vel'].plot.hist()
-    #ds['cloud_top_pressure'].plot.hist()
-    df=ds.to_dataframe().reset_index().dropna().set_index(['time','lat','lon'])
-    print(df.reset_index())
-
-    ds_small=xr.Dataset().from_dataframe(df)
-    cloud_plotter(ds_small['pressure_vel'])
-    cloud_plotter(ds_small['pressure_tendency'])
-    cloud_plotter(ds_small['cloud_top_pressure'],cmap='viridis', vmin=0, vmax=0)
-    cloud_plotter(ds['id_map'],cmap='viridis', vmin=0, vmax=0)
-
-
-
-    print(ds)
     
     
-def animation(ds_total):
+def animation(ds_total, tag):
     cmap = c.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
 
-    m.plot_loop(ds_total, 'size_rate_mean', c.implot, -10, 10,'RdBu',m.FOLDER)    
-    m.plot_loop(ds_total, 'pressure_adv_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER)
-    m.plot_loop(ds_total, 'cloud_top_pressure_mean', c.implot, 0, 1000,'viridis',m.FOLDER)
-    m.plot_loop(ds_total, 'pressure_vel_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER)
-    m.plot_loop(ds_total, 'pressure_ten_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER)
-    m.plot_loop(ds_total, 'pressure_rate_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER)
-    m.plot_loop(ds_total, 'thresh_map', c.implot, 0, 255,'viridis',m.FOLDER)
-    m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER)
-    m.plot_loop(ds_total, 'size_map', c.implot, 0, 100,'viridis',m.FOLDER)
-    m.plot_loop(ds_total, 'pressure_vel', c.implot, -2, 2,'RdBu',m.FOLDER)
-    m.plot_loop(ds_total, 'pressure_tendency', c.implot, -2, 2,'RdBu',m.FOLDER)
-    m.plot_loop(ds_total, 'cloud_top_pressure', c.implot, 0, 1000,'viridis',m.FOLDER)
+    m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER + tag)
+    m.plot_loop(ds_total, 'size_rate_mean', c.implot, -10, 10,'RdBu',m.FOLDER+tag)    
+    m.plot_loop(ds_total, 'pressure_adv_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER+tag)
+    m.plot_loop(ds_total, 'cloud_top_pressure_mean', c.implot, 0, 1000,'viridis',m.FOLDER+tag)
+    m.plot_loop(ds_total, 'pressure_vel_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER+tag)
+    m.plot_loop(ds_total, 'pressure_ten_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER+tag)
+    m.plot_loop(ds_total, 'pressure_rate_mean', c.implot, -0.1, 0.1,'RdBu',m.FOLDER+ tag)
+    m.plot_loop(ds_total, 'thresh_map', c.implot, 0, 255,'viridis',m.FOLDER + tag)
+    m.plot_loop(ds_total, 'size_map', c.implot, 0, 100,'viridis',m.FOLDER + tag)
+    m.plot_loop(ds_total, 'pressure_vel', c.implot, -2, 2,'RdBu',m.FOLDER + tag)
+    m.plot_loop(ds_total, 'pressure_tendency', c.implot, -2, 2,'RdBu',m.FOLDER + tag)
+    m.plot_loop(ds_total, 'cloud_top_pressure', c.implot, 0, 1000,'viridis',m.FOLDER + tag)
 
 
 def time_series_post_processing(stats):
@@ -345,7 +314,6 @@ def post_processing():
     ds_time_series_mean= time_series_post_processing('mean')
     ds_time_series_median= time_series_post_processing('median')
 
-     
 
     #time_series_plotter(ds_time_series, 'pressure_vel')
     #time_series_plotter(ds_time_series, 'size')
@@ -356,21 +324,47 @@ def post_processing():
     mean_clouds(ds_time_series_mean, ds_total, ds_contours, 'mean')
     mean_clouds(ds_time_series_median, ds_total, ds_contours, 'median')
 
-    #scatter_plot(ds_time_series, 'size')
-    #scatter_plot(ds_time_series, 'cloud_top_pressure')    
+   
 
 def main():
-    ds_total=xr.open_dataset('../data/processed/clouds_mean.nc')
-    ds_total=ds_total.sel(lat=slice(0,25))
+    ds_total=xr.open_dataset('../data/processed/clouds_mean_kin.nc')
+
+    #ds_total=kt.calc(ds_total)
+    
+    ds_total['size_map']=np.sqrt(ds_total.area_map)
+    ds_total['pressure_vel']=100*ds_total['pressure_vel']
+    ds_total['pressure_tendency']=100*ds_total['pressure_tendency']
+    ids=np.unique(ds_total['id_map'].values)
+    labels=['pressure_vel','size_map','pressure_tendency','cloud_top_pressure','vorticity','divergence']
+    ds_time_series=time_series_calc(ds_total, ids,labels,  median=False)
+  
+    ds_total=ds_total.sel(lat=slice(0,23))
     ids=np.unique(ds_total['id_map'].values)
     ds_time_series= time_series_post_processing('mean')
+    scatter_plot(ds_time_series, 'size')
+    scatter_plot(ds_time_series, 'cloud_top_pressure')  
+    #ds_total
     ds_time_series=ds_time_series.sel(id=ids, method='nearest')
-    scatter_plot(ds_time_series, 'size_rate')
+    time_series_plotter(ds_time_series, 'cloud_top_pressure')
+    time_series_plotter(ds_time_series, 'pressure_vel')
+    time_series_plotter(ds_time_series, 'pressure_rate')
+    time_series_plotter(ds_time_series, 'size')
 
-    ds_total=ds_total.where(np.sign(ds_total.pressure_ten_mean) != 
-                            np.sign(ds_total.pressure_vel_mean))
-    animation(ds_total)
-    
+    scatter_plot(ds_time_series, 'size')
+    scatter_plot(ds_time_series, 'cloud_top_pressure')  
+    scatter_plot(ds_time_series, 'size_rate')
+    #scatter_general(ds_time_series,'id', 'size_rate')
+    #scatter_general(ds_time_series,'id', 'pressure_vel')  
+    #scatter_general(ds_time_series,'id', 'pressure_rate')   
+
+ 
+    #ds_unit=ds_total.where(np.sign(ds_total.pressure_ten_mean) != 
+                            #np.sign(ds_total.pressure_vel_mean))
+    #animation(ds_unit, '_opposite_signs')
+    #ds_unit=ds_total.where(ds_total.id_map.isin(IDS))
+   # animation(ds_total, '_list_tropics')
+
+
     # ds_total=xr.open_dataset('../data/processed/tracked.nc')
     # #time_series(ds_total, median=True)
     # #time_series(ds_total, median=False)

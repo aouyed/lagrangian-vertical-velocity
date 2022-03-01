@@ -54,7 +54,7 @@ def preprocessing():
    
     return ds_total
 
-def plot_loop(ds, var, func, vmin, vmax, cmap,scatterv):
+def plot_loop(ds, var, func, vmin, vmax, cmap,tag):
     fig, ax = plt.subplots(dpi=300)
     camera = Camera(fig)
     dates=ds['time'].values
@@ -63,7 +63,7 @@ def plot_loop(ds, var, func, vmin, vmax, cmap,scatterv):
         ds_unit=ds.sel(time=date)
         values=ds_unit[var].values
         values[values==0]=np.nan
-        ax, fig, im =func(ds_unit, values, vmin,vmax,date, ax, fig, cmap,scatterv)
+        ax, fig, im =func(ds_unit, values, vmin,vmax,date, ax, fig, cmap, tag)
         ax.text(0.5, 1.01, np.datetime_as_string(date, timezone='UTC'),
                 transform=ax.transAxes)
 
@@ -71,7 +71,7 @@ def plot_loop(ds, var, func, vmin, vmax, cmap,scatterv):
     if func != calc.marginal_an:    
         cbar=plt.colorbar(im)
     animation = camera.animate()
-    animation.save(PLOT_PATH+ var+'_'+scatterv+'.gif')
+    animation.save(PLOT_PATH+ var+'_'+tag+'.gif')
     
 def post_plots(ds):
     temp_var='cloud_top_temperature'
@@ -126,8 +126,9 @@ def analysis(ds):
 def main():
     ds= preprocessing()
     ds=xr.open_dataset(NC_PATH+FOLDER+'_output.nc')
-    plot_loop(ds, 'cloud_top_pressure', calc.quiver_hybrid, 200, 1000,'viridis',FOLDER)
-   
+    m.plot_loop(ds, 'cloud_top_pressure',calc.implot_quiver, 200, 1000,'winter',m.FOLDER)
+    m.plot_loop(ds, 'pressure_vel',calc.implot_quiver, -10, 10,'RdBu',m.FOLDER)
+    m.plot_loop(ds, 'pressure_tendency',calc.implot_quiver,-10, 10,'RdBu',m.FOLDER)
 
 if __name__ == '__main__':
     main()
