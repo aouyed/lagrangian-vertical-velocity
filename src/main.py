@@ -69,7 +69,9 @@ def plot_loop(ds, var, func, vmin, vmax, cmap,tag):
 
         camera.snap()
     if func != calc.marginal_an:    
-        cbar=plt.colorbar(im)
+        #cbar=plt.colorbar(im)
+        fig.colorbar(im, orientation="horizontal", pad=0.2)
+
     animation = camera.animate()
     animation.save(PLOT_PATH+ var+'_'+tag+'.gif')
     
