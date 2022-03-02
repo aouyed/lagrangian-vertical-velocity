@@ -1,2 +1,3 @@
 KERNEL= 5
 THRESH = 1
+STATS='median'
