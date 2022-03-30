@@ -1,10 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Mar 29 11:19:38 2022
-
-@author: aouyed
-"""
+import calculators as c
+import main as m
 
 def animation(ds_total, tag):
     m.plot_loop(ds_total, 'divergence_mean', c.quiver_hybrid, -10, 10,'RdBu',m.FOLDER+tag)    

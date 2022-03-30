@@ -15,6 +15,7 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pickle 
 from scipy import stats
+import animator
 
 
 class cloudy_system:
@@ -36,26 +37,67 @@ class cloudy_system:
         self.object_tracker()
         
     def object_tracker(self):
-        ds=xr.open_dataset(self.file)
-        self.ds_raw, cmap, self.ds_contours, df =cc.contour_loop(ds)  
-        pickle.dump(self.ds_contours,open( "../data/processed/tracked_contours.p", "wb" ))
-        self.ds_raw=self.ds_raw.where(self.ds_raw.cloud_top_pressure > 0)
-        self.ds_raw['size_map']=np.sqrt(self.ds_raw.area_map)
-        self.ds_raw['pressure_vel']=100*self.ds_raw['pressure_vel']
-        self.ds_raw['pressure_tendency']=100*self.ds_raw['pressure_tendency']
-        self.ds_raw['pressure_adv']= self.ds_raw['pressure_vel']- ds_raw['pressure_tendency']
         self.labels=['cloud_top_pressure','pressure_vel','size_map','pressure_tendency','pressure_adv','vorticity','divergence']
 
+        ds=xr.open_dataset(self.file)
+        try:
+            self.ds_raw=xr.open_dataset('../data/processed/tracked.nc')
+            self.ds_contours=pickle.load(open( "../data/processed/tracked_contours.p", "rb" ))
+        except:
+            print('calculating contours')
+            self.contour_loop(ds)  
+            pickle.dump(self.ds_contours,open( "../data/processed/tracked_contours.p", "wb" ))
+            self.ds_raw=kt.calc(self.ds_raw)
+            self.ds_raw=self.ds_raw.where(self.ds_raw.cloud_top_pressure > 0)
+            self.ds_raw['size_map']=np.sqrt(self.ds_raw.area_map)
+            self.ds_raw['pressure_vel']=100*self.ds_raw['pressure_vel']
+            self.ds_raw['pressure_tendency']=100*self.ds_raw['pressure_tendency']
+            self.ds_raw['pressure_adv']= self.ds_raw['pressure_vel']- self.ds_raw['pressure_tendency']
+
+            self. ds_raw.to_netcdf('../data/processed/tracked.nc')
+
+        
         self.mean_time()
         
-           
+    def contour_loop(self, ds):
+        kernel = config.KERNEL
+        threshv = config.THRESH
+        ct = CentroidTracker()
+        ds_total=xr.Dataset()
+        contours_dict={'date': [], 'id':[], 'contour':[]}
+        for i, time in  enumerate(ds['time'].values):
+            print(time)
+            ds_clouds= ds[['cloud_top_pressure','pressure_vel','pressure_tendency','flow_x','flow_y']].sel(time=time)
+            ds_clouds=ds_clouds.fillna(0)
+            values =ds_clouds['cloud_top_pressure'].values
+            values = np.squeeze(values)    
+            contours= countourer(values, kernel, threshv)
+            objects, contours = ct.update(contours)
+            ds_clouds= contour_drawer(contours, objects,ds_clouds)
+            contour_plotter(ds_clouds, new_cmap, i)
+            contour_store(contours_dict, time, contours )
+            
+            
+            if ds_total:
+                ds_total=xr.concat([ds_total,ds_clouds],'time' )
+            else:
+                ds_total=ds_clouds
+        
+        pickle.dump(contours_dict,open( "../data/processed/tracked_contours_dictionary.p", "wb" ))
+        df=pd.DataFrame(data=contours_dict)
+        df=df.set_index(['date','id'])
+        self.ds_raw=ds_total
+        self.ds_contours=xr.Dataset.from_dataframe(df)
+          
+    
     def mean_time(self):
         try:
-            self.ds_time_series=xr.open('../data/processed/time_series_complete_mean.nc')
+            self.ds_time_series=xr.open_dataset('../data/processed/time_series_complete_mean.nc')
         except:
             print('running time series calculator')
-            self.time_series_calc(labels)
+            self.time_series_calc()
             self.ds_time_series.to_netcdf('../data/processed/time_series_complete_mean.nc')
+      
         try:
             self.ds_clouds_mean=xr.open_dataset('../data/processed/clouds_mean.nc')
         except:
@@ -69,9 +111,9 @@ class cloudy_system:
         
     def time_loop(self, data):
 
-        for time in tqdm(self.ds_total['time'].values):
+        for time in tqdm(self.ds_raw['time'].values):
             #ds=ds_total.sel(time = time)  
-            ds_unit=self.ds_total.sel(time=time)
+            ds_unit=self.ds_raw.sel(time=time)
             ids=ds_unit['id_map'].values
             ids=np.unique(ids[~np.isnan(ids)])
             
@@ -79,17 +121,17 @@ class cloudy_system:
                 ds=ds_unit.where(ds_unit.id_map==idno)
                 data['time'].append(time)
                 data['id'].append(idno) 
-                for label in labels:
+                for label in self.labels:
                     values=ds[label].mean(skipna=True).item()
                     data[label].append(values)
                  
         return data
         
-    def time_series_calc(self, labels):
+    def time_series_calc(self):
         ids=self.ds_raw['id_map'].values
         ids=np.unique(ids[~np.isnan(ids)])
         data={}
-        for label in labels:
+        for label in self.labels:
             data[label]=[]
         data['time']=[]
         data['id']=[]
@@ -101,9 +143,8 @@ class cloudy_system:
         self.ds_time_series['pressure_rate']=100*self.ds_time_series['cloud_top_pressure'].differentiate("time",datetime_unit='s' )
               
 
-    def mean_clouds(self):
+    def mean_clouds(self, labels):
         print('means')
-        #labels=['pressure_vel','pressure_ten','cloud_top_pressure','pressure_adv','pressure_rate','size_rate']
         ds_total=xr.Dataset()
         for date in tqdm(self.ds_raw['time'].values):
             ds_unit=self.ds_raw.sel(time=date)
@@ -138,7 +179,9 @@ class cloudy_system:
 print('hello')
 file=   m.NC_PATH+m.FOLDER+'_output.nc'     
 c=cloudy_system(file)
-line_plot(ds_time_series, stats+'small')
+ds=c.ds_clouds_mean
+ds=ds.sel(lat=slice(0,25), lon=slice(-100, -75))
+animator.animation(ds, 'test')
         #line_plot_pressure(ds_time_series, stats+'small')
         
         #ds_total=ds_total.sel(lat=slice(0,25), lon=slice(-100, -75))
