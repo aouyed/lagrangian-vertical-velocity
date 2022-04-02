@@ -32,14 +32,17 @@ class cloudy_system:
         Estimated robust location.
     
     """
-    def __init__(self,file):
-        self.file=file
+    def __init__(self,ds):
+        self.ds=ds
         self.object_tracker()
+        
+        
+    
         
     def object_tracker(self):
         self.labels=['cloud_top_pressure','pressure_vel','size_map','pressure_tendency','pressure_adv','vorticity','divergence']
 
-        ds=xr.open_dataset(self.file)
+        ds=self.ds
         try:
             self.ds_raw=xr.open_dataset('../data/processed/tracked.nc')
             self.ds_contours=pickle.load(open( "../data/processed/tracked_contours.p", "rb" ))
@@ -176,14 +179,3 @@ class cloudy_system:
         
     
             
-print('hello')
-file=   m.NC_PATH+m.FOLDER+'_output.nc'     
-c=cloudy_system(file)
-ds=c.ds_clouds_mean
-ds=ds.sel(lat=slice(0,25), lon=slice(-100, -75))
-animator.animation(ds, 'test')
-        #line_plot_pressure(ds_time_series, stats+'small')
-        
-        #ds_total=ds_total.sel(lat=slice(0,25), lon=slice(-100, -75))
-        
-        #animation(ds_total, stats +'_tropics_storms_small')
