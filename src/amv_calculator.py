@@ -1,21 +1,15 @@
 
-import cloud_calculators as cc
-import main as m 
 import cv2
 import numpy as np
 import xarray as xr
 import pandas as pd
-import main as m 
-import calculators as c
 import kinematics_tracker as kt
 import config as config 
 from centroidtracker import CentroidTracker
-import main as m 
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pickle 
 from scipy import stats
-import animator
 from natsort import natsorted
 import glob
 flow_var='cloud_top_pressure'

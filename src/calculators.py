@@ -14,7 +14,7 @@ import cmocean
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import metpy.calc as mpcalc
 from metpy.units import units
-import main
+#import main
 import metpy
 import pandas as pd
 import matplotlib

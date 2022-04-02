@@ -10,11 +10,9 @@ import cv2
 import numpy as np
 import xarray as xr
 import pandas as pd
-import main as m 
 import calculators as c
 import config as config 
 from centroidtracker import CentroidTracker
-import main as m 
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import pickle 
@@ -107,7 +105,7 @@ def main():
     ds_total= grad_calculator(ds_total)
    
     
-    m.plot_loop(ds_total, 'cloud_top_pressure', c.quiver_hybrid, 200, 1000,'viridis',m.FOLDER +'_amv')
+    m.plot_loop(ds_total, 'cloud_top_pressure', c.quiver_hybrid, 200, 1000,'viridis',config.FOLDER +'_amv')
     
 if __name__ == "__main__":
     main()
