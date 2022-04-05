@@ -5,10 +5,12 @@ from cloudy_plot import cloudy_plot
     
 
 def main():
-    dt=1200    
+    dt=3600
     x=amv_calculator(dt)
-    c=cloudy_system(x.ds_amv)
+    c=cloudy_system(x)
     plotter=cloudy_plot(c)
     plotter.animate('test')
+    plotter.time_series_plotter('cloud_top_pressure',str(dt))
+
 if __name__ == '__main__':
     main()

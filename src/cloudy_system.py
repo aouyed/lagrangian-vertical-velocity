@@ -26,9 +26,10 @@ class cloudy_system:
         Estimated robust location.
     
     """
-    def __init__(self,ds):
-        self.ds=ds
+    def __init__(self,clouds):
+        self.clouds=clouds
         self.object_tracker()
+        self.dt=clouds.dt
         
         
     
@@ -36,14 +37,14 @@ class cloudy_system:
     def object_tracker(self):
         self.labels=['cloud_top_pressure','pressure_vel','size_map','pressure_tendency','pressure_adv','vorticity','divergence']
 
-        ds=self.ds
+        ds=self.clouds.ds_amv
         try:
-            self.ds_raw=xr.open_dataset('../data/processed/tracked.nc')
-            self.ds_contours=pickle.load(open( "../data/processed/tracked_contours.p", "rb" ))
+            self.ds_raw=xr.open_dataset('../data/processed/tracked_'+str(self.dt)+'.nc')
+            self.ds_contours=pickle.load(open( "../data/processed/tracked_contours_"+str(self.dt)+".p", "rb" ))
         except:
             print('calculating contours')
             self.contour_loop(ds)  
-            pickle.dump(self.ds_contours,open( "../data/processed/tracked_contours.p", "wb" ))
+            pickle.dump(self.ds_contours,open( "../data/processed/tracked_contours_"+str(self.dt)+".p", "wb" ))
             self.ds_raw=kt.calc(self.ds_raw)
             self.ds_raw=self.ds_raw.where(self.ds_raw.cloud_top_pressure > 0)
             self.ds_raw['size_map']=np.sqrt(self.ds_raw.area_map)
@@ -51,7 +52,7 @@ class cloudy_system:
             self.ds_raw['pressure_tendency']=100*self.ds_raw['pressure_tendency']
             self.ds_raw['pressure_adv']= self.ds_raw['pressure_vel']- self.ds_raw['pressure_tendency']
 
-            self. ds_raw.to_netcdf('../data/processed/tracked.nc')
+            self. ds_raw.to_netcdf('../data/processed/tracked_'+str(self.dt)+'.nc')
 
         
         self.mean_time()
@@ -80,7 +81,6 @@ class cloudy_system:
             else:
                 ds_total=ds_clouds
         
-        pickle.dump(contours_dict,open( "../data/processed/tracked_contours_dictionary.p", "wb" ))
         df=pd.DataFrame(data=contours_dict)
         df=df.set_index(['date','id'])
         self.ds_raw=ds_total
@@ -89,14 +89,14 @@ class cloudy_system:
     
     def mean_time(self):
         try:
-            self.ds_time_series=xr.open_dataset('../data/processed/time_series_complete_mean.nc')
+            self.ds_time_series=xr.open_dataset('../data/processed/time_series_complete_mean_'+str(self.dt)+'.nc')
         except:
             print('running time series calculator')
             self.time_series_calc()
-            self.ds_time_series.to_netcdf('../data/processed/time_series_complete_mean.nc')
+            self.ds_time_series.to_netcdf('../data/processed/time_series_complete_mean_'+str(self.dt)+'.nc')
       
         try:
-            self.ds_clouds_mean=xr.open_dataset('../data/processed/clouds_mean.nc')
+            self.ds_clouds_mean=xr.open_dataset('../data/processed/clouds_mean_'+str(self.dt)+'.nc')
         except:
             print('running mean_clouds...')
             labels=self.labels
@@ -104,7 +104,7 @@ class cloudy_system:
             labels.append('size_rate')
 
             self.mean_clouds(labels)
-            self.ds_clouds_mean.to_netcdf('../data/processed/clouds_mean.nc')
+            self.ds_clouds_mean.to_netcdf('../data/processed/clouds_mean_'+str(self.dt)+'.nc')
         
     def time_loop(self, data):
 

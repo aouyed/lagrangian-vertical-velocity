@@ -49,7 +49,8 @@ class cloudy_plot:
                                ds['lon'].max().item(),ds['lat'].min().item(),ds['lat'].max().item()])
         return ax, fig, im
         
-    def time_series_plotter(ds, label, tag):
+    def time_series_plotter(self,label, tag):
+        ds=self.clouds.ds_time_series 
         fig, ax= plt.subplots()
         #for idno in ds['id'].values:
     
@@ -91,7 +92,10 @@ class cloudy_plot:
         ds_total=self.clouds.ds_clouds_mean
         ds_total=ds_total.sel(lat=slice(0,25), lon=slice(-100, -75))
         self.plot_loop(ds_total, 'divergence_mean',self.quiver_hybrid, -10, 10,'RdBu',config.FOLDER+tag)    
-    
+        self.plot_loop(ds_total, 'pressure_vel_mean', self.quiver_hybrid, -0.1, 0.1,'RdBu',config.FOLDER+tag)
+        self.plot_loop(ds_total, 'pressure_tendency_mean', self.quiver_hybrid, -0.1, 0.1,'RdBu',config.FOLDER+tag)
+        self.plot_loop(ds_total, 'pressure_rate_mean', self.quiver_hybrid, -0.1, 0.1,'RdBu',config.FOLDER+ tag)
+       
         # cmap = c.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
         # m.plot_loop(ds_total, 'cloud_top_pressure_mean', c.implot, 0, 1000,'viridis',m.FOLDER+tag)
         # m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER + tag)

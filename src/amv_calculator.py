@@ -33,12 +33,13 @@ class amv_calculator:
         self.dt=dt
         self.preprocessing()
         self.calc()
+        self.morphing()
         
     def preprocessing(self):
         try:
-            self.ds_raw=xr.open_dataset(config.NC_PATH+config.FOLDER+'_raw.nc')
+            self.ds_raw=xr.open_dataset(config.NC_PATH+config.FOLDER+'_raw_'+str(self.dt)+'.nc')
         except:
-            files=natsorted(glob.glob('../data/interim/'+m.FOLDER+'/*'))
+            files=natsorted(glob.glob('../data/interim/'+config.FOLDER+'/*'))
             ds_total = xr.Dataset()
             for file in tqdm(files):
                 ds_unit=xr.open_dataset(file)
@@ -48,16 +49,16 @@ class amv_calculator:
                     ds_total = xr.concat([ds_total, ds_unit], 'time')
             ds_total=ds_total.sortby('time')
             self.ds_raw=ds_total        
-            ds_total.to_netcdf(config.NC_PATH+config.FOLDER+'_raw.nc')
+            ds_total.to_netcdf(config.NC_PATH+config.FOLDER+'_raw_'+str(self.dt)+'.nc')
         
     def calc(self):
         try:
-            self.ds_amv=xr.open_dataset(config.NC_PATH+config.FOLDER+'_amv.nc')
+            self.ds_amv=xr.open_dataset(config.NC_PATH+config.FOLDER+'_amv_'+str(self.dt)+'.nc')
         except:
             ds=self.ds_raw
             ds=ds.sortby('time')
-            timedelta=np.timedelta64(dt, 's')
-            times=pd.date_range(start=ds['time'].values[0], end=ds['time'].values[-1], freq=str(dt)+'s')
+            timedelta=np.timedelta64(self.dt, 's')
+            times=pd.date_range(start=ds['time'].values[0], end=ds['time'].values[-1], freq=str(self.dt)+'s')
             ds_total = xr.Dataset()
             for i in tqdm(range(len(times[:-1]))):
                 ds_unit=self.prepare_amv(ds, times[i], times[i+1])
@@ -67,7 +68,7 @@ class amv_calculator:
                     ds_total = xr.concat([ds_total, ds_unit], 'time')
             ds_total=ds_total.sortby('time')
             self.ds_amv=ds_total        
-            ds_total.to_netcdf(m.NC_PATH+m.FOLDER+'_amv.nc')
+            ds_total.to_netcdf(config.NC_PATH+config.FOLDER+'_amv_'+str(self.dt)+'.nc')
 
     
     def prepare_amv(self, ds,time_minus, time):
@@ -112,7 +113,59 @@ class amv_calculator:
         ds['u']=(('lat','lon'),u)
         ds['v']=(('lat','lon'),v)
         return ds
+    
+    
+    def morphing(self):
+        print('morphing')
+        labels=['cloud_top_height','cloud_top_pressure','flow_x','flow_y']
+        times=self.ds_amv['time'].values
+        ds_total=xr.Dataset()
+        for i in tqdm(range(len(times[:-2]))):
+            ds_unit_t0=self.ds_amv[labels].sel(time=times[i])
+            ds_unit_t1=self.ds_amv[labels].sel(time=times[i+1])
+            ds_unit_t2=self.ds_amv[labels].sel(time=times[i+2])
+            pressure_t0=ds_unit_t0['cloud_top_pressure'].values
+            pressure_t1=ds_unit_t1['cloud_top_pressure'].values
+            pressure_t2=ds_unit_t2['cloud_top_pressure'].values
+            flow_shape=ds_unit_t0['flow_x'].values.shape
+            flow_shape=(flow_shape[0],flow_shape[1], 2)
+            flowd_tl=np.zeros(flow_shape)
+            flowd_tu=np.zeros(flow_shape)
 
+            flowd_tl[:,:,0]=ds_unit_t0['flow_x'].values
+            flowd_tl[:,:,1]=ds_unit_t0['flow_y'].values
+            ds_unit_h1= self.half_warper(pressure_t0, pressure_t1, flowd_tl, ds_unit_t1.copy())
+                  
+            flowd_tu[:,:,0]=-ds_unit_t2['flow_x'].values
+            flowd_tu[:,:,1]=-ds_unit_t2['flow_y'].values
+            ds_unit_h2= -self.half_warper(pressure_t2, pressure_t1, flowd_tu, ds_unit_t1.copy())
+            ds_unit= 0.5*(ds_unit_h1+ds_unit_h2) 
+            if  ds_total:
+                ds_total=xr.concat([ds_total, ds_unit],'time')
+            else:
+                ds_total=ds_unit
+        self.ds_amv['dp_morph']=ds_total['dp_morph']
+        self.ds_amv['pp_morph']=ds_total['pp_morph']        
+                      
+                         
+                    
+                  
+                    
+    def half_warper(self, pressure0, pressure, flowd, ds_unit):
+            mask=np.isnan(pressure)
+            pressure0d=self.warp_flow(pressure0.copy(),flowd.copy())
+            dp=pressure-pressure0d
+            pp=pressure-pressure0
+            dp[mask]=np.nan
+            pp[mask]=np.nan
+            ds_unit['dp_morph']=(('lat','lon'),dp)
+            ds_unit['pp_morph']=(('lat','lon'),pp)
+
+            return ds_unit[['dp_morph','pp_morph']]
+            
+                
+            
+            return dz, pz, dp, pp
 
     def amv_calc(self, ds_unit, frame0, pressure0, height0):
         frame=np.squeeze(ds_unit[flow_var].values)
@@ -150,12 +203,8 @@ class amv_calculator:
         ds_unit['flow_x']=(('lat','lon'),flowd[:,:,0])
         ds_unit['flow_y']=(('lat','lon'),flowd[:,:,1])
         ds_unit=self.wind_calculator(ds_unit)
-        ds_unit['height_tendency']=(('lat','lon'),pzpt)
-        ds_unit['height_vel']=(('lat','lon'),dzdt)
-        ds_unit['pressure_vel']=(('lat','lon'),dpdt)
-        ds_unit['pressure_tendency']=(('lat','lon'),pppt)
-        ds_unit['height0']=(('lat','lon'),height0)
-        ds_unit['height0d']=(('lat','lon'),height0d)
+        ds_unit['pressure_vel']=(('lat','lon'),dp)
+        ds_unit['pressure_tendency']=(('lat','lon'),pp)
         frame0=frame
         pressure0=pressure
         height0=height
