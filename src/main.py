@@ -10,7 +10,7 @@ def main():
     c=cloudy_system(x)
     plotter=cloudy_plot(c)
     plotter.animate('test')
-    plotter.time_series_plotter('cloud_top_pressure',str(dt))
+    plotter.time_series_plotter('cloud_top_pressure',str(dt)+'temp')
 
 if __name__ == '__main__':
     main()

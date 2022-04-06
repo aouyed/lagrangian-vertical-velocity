@@ -361,7 +361,7 @@ def mean_clouds(ds_time_series,ds_cloud, ds_contours,labels, string='mean'):
 def animation(ds_total, tag):
     m.plot_loop(ds_total, 'divergence_mean', c.quiver_hybrid, -10, 10,'RdBu',m.FOLDER+tag)    
 
-    # cmap = c.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
+    cmap = c.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
     # m.plot_loop(ds_total, 'cloud_top_pressure_mean', c.implot, 0, 1000,'viridis',m.FOLDER+tag)
     # m.plot_loop(ds_total, 'id_map', c.implot, 0, 1000,cmap,m.FOLDER + tag)
     # m.plot_loop(ds_total, 'divergence_mean', c.implot, -10, 10,'RdBu',m.FOLDER+tag)    
