@@ -27,9 +27,16 @@ class cloudy_system:
     
     """
     def __init__(self,clouds):
+        self.ds_clouds_mean_rolled=None
+        self.ds_clouds_rolled=None
+        self.ds_time_series_rolled=None
+        self.ds_raw=None
+        self.ds_contour=None
+        
         self.clouds=clouds
         self.dt=clouds.dt
         self.object_tracker()
+        self.rolling_mean()
         
         
     
@@ -165,7 +172,7 @@ class cloudy_system:
 
             self.mean_clouds(labels)
             self.ds_clouds_mean.to_netcdf('../data/processed/clouds_mean_'+str(self.dt)+'.nc')
-        
+            self.rolling_mean()
     def time_loop(self, data):
 
         for time in tqdm(self.ds_raw['time'].values):
@@ -231,5 +238,10 @@ class cloudy_system:
                 ds_total=xr.concat([ds_total, ds_unit], 'time')
         self.ds_clouds_mean=ds_total
         
+    def rolling_mean(self):
+        self.ds_clouds_mean_rolled=self.ds_clouds_mean.rolling(time=3, center=True).mean()
+        self.ds_clouds_rolled=self.ds_raw.rolling(time=3, center=True).mean()
+        self.ds_time_series_rolled=self.ds_time_series.rolling(time=3, center=True).mean()
+
     
             

@@ -51,15 +51,30 @@ class cloudy_plot:
         
     def time_series_plotter(self,label, tag):
         ds=self.clouds.ds_time_series 
+        ds_rolled=self.clouds.ds_time_series_rolled 
+
+        ds_mean=self.clouds.ds_clouds_mean
+
+        ds_mean=ds_mean.sel(lat=slice(0,25), lon=slice(-100, -75))
+        ids=ds_mean['id_map'].values
+        ids=ids[~np.isnan(ids)]
+        ids, counts=np.unique(ids, return_counts=True)
+        count_sort_ind = np.argsort(-counts)
+        ids=ids[count_sort_ind]
+  
         fig, ax= plt.subplots()
-        #for idno in ds['id'].values:
+        
     
-        for idno in ds['id'].values:
+        #for idno in ds['id'].values:
+        for idno in [ids[1]]:
             ds_unit=ds.sel(id=idno)
             dates=ds_unit['time'].values
             dates=pd.to_datetime(dates).hour
             ax.plot(dates,ds_unit[label].values, label=str(idno))
-        #ax.legend()
+            ds_unit=ds_rolled.sel(id=idno)
+            ax.plot(dates,ds_unit[label].values, label=str(idno)+'_rolled')
+
+        ax.legend()
         #ax.set_ylim(0,150)
         ax.set_xlabel('hour')
         ax.set_ylabel('cloud top pressure')
@@ -161,6 +176,13 @@ class cloudy_plot:
         cmap = self.rand_cmap(1000, type='bright', first_color_black=True, last_color_black=False, verbose=True)
         ds_total=self.clouds.ds_clouds_mean
         ds_total=ds_total.sel(lat=slice(0,25), lon=slice(-100, -75))
+        ids=ds_total['id_map'].values
+        ids=ids[~np.isnan(ids)]
+        ids, counts=np.unique(ids, return_counts=True)
+        count_sort_ind = np.argsort(-counts)
+        ids=ids[count_sort_ind]
+        ds_total=ds_total.where(ds_total.id_map==ids[1])
+        
         self.plot_loop(ds_total, 'divergence_mean',self.quiver_hybrid, -10, 10,'RdBu',config.FOLDER+tag)    
         self.plot_loop(ds_total, 'pressure_vel_mean', self.quiver_hybrid, -0.1, 0.1,'RdBu',config.FOLDER+tag)
         self.plot_loop(ds_total, 'pressure_tendency_mean', self.quiver_hybrid, -0.1, 0.1,'RdBu',config.FOLDER+tag)

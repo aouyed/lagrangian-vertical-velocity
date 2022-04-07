@@ -195,10 +195,10 @@ class amv_calculator:
         pp[mask]=np.nan
         pz[mask]=np.nan
             
-        dzdt=1000/1200*dz
-        dpdt=1/1200*dp
-        pppt=1/1200*pp
-        pzpt=1000/1200*pz
+        dzdt=dz
+        dpdt=dp
+        pppt=pp
+        pzpt=pz
         
         ds_unit['flow_x']=(('lat','lon'),flowd[:,:,0])
         ds_unit['flow_y']=(('lat','lon'),flowd[:,:,1])
