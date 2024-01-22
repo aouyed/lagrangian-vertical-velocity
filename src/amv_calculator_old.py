@@ -15,7 +15,7 @@ import glob
 flow_var='cloud_top_pressure'
 GRID=0.018
 R = 6371000
-class amv_calculator:
+class amv_calculator_old:
     """An object that tracks and tags clouds, and calculates kinematic 
     and thermodynamic properties `.
     Parameters

@@ -10,7 +10,6 @@ from dateutil import parser
 import glob
 from natsort import natsorted
 import io
-import cmocean
 from matplotlib.backends.backend_agg import FigureCanvasAgg as FigureCanvas
 import metpy.calc as mpcalc
 from metpy.units import units
