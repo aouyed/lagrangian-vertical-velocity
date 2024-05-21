@@ -212,17 +212,17 @@ def warp_ds(ds1, ds_amv):
     #return ds_amv
 
 
-# file_path1='../data/raw/OR_ABI-L2-ACHAF-M6_G16_s20201890000227_e20201890009535_c20201890011307.nc'
-# file_path2='../data/raw/OR_ABI-L2-ACHAF-M6_G16_s20201890010227_e20201890019535_c20201890021219.nc'
+file_path1='../data/raw/OR_ABI-L2-ACHAF-M6_G16_s20201890000227_e20201890009535_c20201890011307.nc'
+file_path2='../data/raw/OR_ABI-L2-ACHAF-M6_G16_s20201890010227_e20201890019535_c20201890021219.nc'
 
-# # Print latitude array
+# Print latitude array
 
-# ds1=xr.open_dataset(file_path1)
-# breakpoint()
-# ds_amv=flow_calculator(file_path1,file_path2)
-# ds_amv['speed']=np.sqrt(ds_amv.u_track**2+ds_amv.v_track**2)
-# ds_amv=ds_amv.where(ds_amv.speed<100)
+ds1=xr.open_dataset(file_path1)
+breakpoint()
+ds_amv=flow_calculator(file_path1,file_path2)
+ds_amv['speed']=np.sqrt(ds_amv.u_track**2+ds_amv.v_track**2)
+ds_amv=ds_amv.where(ds_amv.speed<100)
 
 
-# quiver_cartopy(ds_amv, 'u_track', 'v_track')
-# warp_ds(ds1, ds_amv)
+quiver_cartopy(ds_amv, 'u_track', 'v_track')
+warp_ds(ds1, ds_amv)
