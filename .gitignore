@@ -1,3 +1,4 @@
+*.npy
 *.NC
 *.nc4
 *.gif
@@ -8,3 +9,5 @@
 *.pkl
 *.p
 *.pl
+*.npy 
+*.gif
