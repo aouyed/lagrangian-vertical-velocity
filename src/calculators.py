@@ -14,14 +14,26 @@ from datetime import timedelta
 from tqdm import tqdm 
 import glob
 import matplotlib.pyplot as plt
+import cv2
 
-
-def threshold_var(values, threshold):
-    values[~np.isnan(values)]=1  
+def threshold_var(values, marker):
+    values[~np.isnan(values)]=marker  
     #values[values<=threshold]=1
-    #values=np.nan_to_num(values)
+    values=np.nan_to_num(values)
     return values
-
+    
+def warp_flow(img, flowx, flowy):
+    h, w = flowx.shape
+    #flowx[:]=100
+    #flowy[:]=0
+    flowx = -flowx
+    flowy=-flowy
+    flowx += np.arange(w)
+    flowy += np.arange(h)[:, np.newaxis]
+    flowx = flowx.astype(np.float32)
+    flowy=flowy.astype(np.float32)
+    res = cv2.remap(img, flowx, flowy, cv2.INTER_LINEAR)
+    return res
 
 
 def date_string(prefix, date):
@@ -34,6 +46,48 @@ def date_string(prefix, date):
     return filename[0]
 
 
+def quick_plot():
+    plt.imshow(frame1[frame_slice],vmin=-1,vmax=2)
+    plt.colorbar(location='bottom')
+    plt.show()
+    plt.close()
+    plt.imshow(frame2[frame_slice],vmin=-1,vmax=2)
+    plt.colorbar(location='bottom')
+    plt.show()
+    plt.close()
+    
+    
+def threshold_difference(frame1,frame2, date, Lambda):
+    tframe1=threshold_var(frame1, 1)
+    tframe2=threshold_var(frame2,2)
+    warped_tframe1=warping(tframe1, date, Lambda)
+   
+    #df=frame2-frame1
+
+    
+    tdiff_frame=tframe2-warped_tframe1
+
+    np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('warped_dthresh_%Y%m%d%H%M.npy'),tdiff_frame)
+
+
+
+
+    
+    
+    
+
+def warping(frame,date, Lambda):
+    if Lambda=='random':
+        flowd=np.random.uniform(low=-1,high=1, size=(frame.shape[0],frame.shape[1],2))
+    else:
+        flowd=np.load('../data/processed/l'+str(Lambda)+'_'+date.strftime('amv_%Y%m%d%H%M.npy'))
+    
+    
+    flowx=flowd[:,:,0]
+    flowy=flowd[:,:,1]
+    frame= warp_flow(frame, flowx, flowy)
+    return frame
+
 def main():
   start_date=datetime(2023,7,1,18,0)
   end_date=datetime(2023,7,1,23,40)
@@ -41,6 +95,11 @@ def main():
   dt=timedelta(minutes=10)
   end_date=end_date-dt
   prefix='OR_ABI-L2-ACHTF-M6_G18'
+  Lambda=0.15
+  frame_slice=np.index_exp[1700:1900, 1500:2500]
+  
+
+
   
   # abi_lat, abi_lon, deltas=metrics(file_path)
   for date in tqdm(datelist):
@@ -54,15 +113,18 @@ def main():
       ds2=xr.open_dataset(file_path2)
       frame1=ds1[var].values
       frame2=ds2[var].values
+      frame1=frame1[frame_slice]
+      frame2=frame2[frame_slice]
+      threshold_difference(frame1,frame2,date, Lambda)
+      
+      warped_frame1=warping(frame1,date,Lambda)
+      warped_df=frame2-warped_frame1
+      df=frame2-frame1
+      np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('warped_d'+var+'_%Y%m%d%H%M.npy'),warped_df)
+      np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('d'+var+'_%Y%m%d%H%M.npy'),df)
 
-      frame1=threshold_var(frame1, 241)
-      frame2=threshold_var(frame2, 241)
-      diff_frame=frame2-frame1
-      plt.imshow(diff_frame)
-      plt.show()
-      plt.close()
-      np.save('../data/processed/'+date.strftime('dthresh_%Y%m%d%H%M.npy'),diff_frame)
 
+     
 
 if __name__=='__main__':
     print('hello')

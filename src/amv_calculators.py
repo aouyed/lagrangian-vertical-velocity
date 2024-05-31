@@ -135,6 +135,7 @@ def calc(frame0, frame, Lambda):
     nframe = cv2.normalize(src=frame, dst=None,
                             alpha=0, beta=255, norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_8UC1)
     optical_flow=cv2.optflow.DualTVL1OpticalFlow_create()
+    optical_flow.setLambda(Lambda)
     flowd = optical_flow.calc(nframe0, nframe, None)
 
     flowx=flowd[:,:,0]
@@ -155,46 +156,8 @@ def metrics(file_path):
     return abi_lat, abi_lon, deltas
 
 
-# def flow_calculator(ile_path1, file_path2,abi_lat, abi_lon, deltas,var):
-        
-#     ds1=xr.open_dataset(file_path1)
-#     ds2=xr.open_dataset(file_path2)
-#     file_id = Dataset(file_path1)
-#     ds1[var].plot()
-#     plt.show()
-#     plt.close()
-    
-    
 
-    
-#     frame0, mask0=frame_retreiver(ds1,var)
-#     frame, mask=frame_retreiver(ds2, var)
-#     frame0=frame0[1700:1900, 1500:2500]
-#     frame=frame[1700:1900, 1500:2500]
-    
-#     flowx, flowy=calc(frame0, frame, 1)
-#     #frame_warped=warp_flow(frame0.astype(np.float32), flowx, flowy)
-#     #breakpoint()
-#     flowx[mask0]=np.nan
-#     flowx[mask]=np.nan
-#     flowy[mask0]=np.nan
-#     flowy[mask]=np.nan
-#     dx=dx.copy()
-#     dy=dy.copy()
-#     dx.resize( flowx.shape )
-#     dy.resize(flowy.shape )
-
-#     ds_amv=flow_ds(ds1['x'].values,ds1['y'].values, flowx, flowy)
-#     ds_amv['u_track']=ds_amv['flowx']*dx/DT
-#     ds_amv['v_track']=ds_amv['flowy']*dy/DT
-#     ds_amv['dx']=(['latitude','longitude'], dx)
-#     ds_amv['dy']=(['latitude','longitude'], dy)
-
-    
-    return ds_amv
-
-
-def flow_calculator(file_path1, file_path2,var):
+def flow_calculator(file_path1, file_path2,var,Lambda, frame_slice):
         
     ds1=xr.open_dataset(file_path1)
     ds2=xr.open_dataset(file_path2)
@@ -208,10 +171,9 @@ def flow_calculator(file_path1, file_path2,var):
     
     frame0, mask0=frame_retreiver(ds1,var)
     frame, mask=frame_retreiver(ds2, var)
-    frame0=frame0[1700:1900, 1500:2500]
-    frame=frame[1700:1900, 1500:2500]
-    breakpoint()
-    flowd=calc(frame0, frame, 1)
+    frame0=frame0[frame_slice]
+    frame=frame[frame_slice]
+    flowd=calc(frame0, frame, Lambda)
    
 
     
@@ -263,7 +225,9 @@ def main():
     datelist=pd.date_range(start_date, end_date, freq='10min')
     dt=timedelta(minutes=10)
     end_date=end_date-dt
-    prefix='OR_ABI-L1b-RadF-M6C02_G18'
+    prefix='OR_ABI-L2-ACHTF-M6_G18'
+    Lambda=0.15
+    frame_slice=np.index_exp[1700:1900, 1500:2500]
     file_path= date_string(prefix, start_date)
     
     # abi_lat, abi_lon, deltas=metrics(file_path)
@@ -273,23 +237,11 @@ def main():
     
         file_path1= date_string(prefix, date)
         file_path2=date_string(prefix, date_plus)
-        var='Rad'
-        flowd=flow_calculator(file_path1,file_path2, var)
+        var='TEMP'
+        flowd=flow_calculator(file_path1,file_path2, var, Lambda, frame_slice)
         
-        
-        #ds_amv['speed']=np.sqrt(ds_amv.u_track**2+ds_amv.v_track**2)
-        #ds_amv=ds_amv.where(ds_amv.speed<100)
-        #quiver_cartopy(ds_amv, 'u_track', 'v_track')
-        np.save('../data/processed/'+date.strftime('vis_amv_%Y%m%d%H%M.npy'),flowd)
-        #ds_amv.to_netcdf()
-            
-    # ds_amv=flow_calculator(file_path1,file_path2)
-    # ds_amv['speed']=np.sqrt(ds_amv.u_track**2+ds_amv.v_track**2)
-    # ds_amv=ds_amv.where(ds_amv.speed<100)
-    
-    
-    # quiver_cartopy(ds_amv, 'u_track', 'v_track')
-    # warp_ds(ds1, ds_amv)
+        np.save('../data/processed/'+'l'+str(Lambda)+'_'+date.strftime('amv_%Y%m%d%H%M.npy'),flowd)
+     
     
 if __name__=='__main__':
     print('hello')

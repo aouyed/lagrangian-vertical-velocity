@@ -85,6 +85,42 @@ def plot_loop(prefix, datelist, var, func, cmap, filename, units='K', climits=Fa
     animation = camera.animate()
     animation.save('../data/processed/test_complete.gif')
     
+    
+
+def overlap_plot_loop(prefix, var_label,datelist, func, cmap, filename, frame_slice, Lambda, units='K', climits=False, vmin=200,vmax=300):
+    #fig, ax = plt.subplots(dpi=300)
+    fig=plt.figure(dpi=300)
+
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    
+
+    camera = Camera(fig)
+    for date in tqdm(datelist):
+        filename=date_string(prefix, date)
+        file_id = Dataset(filename)
+        abi_lat, abi_lon = ac.calculate_degrees(file_id)
+        
+        
+        values=np.load('../data/processed/l'+str(Lambda)+'_'+date.strftime(var_label+'_%Y%m%d%H%M.npy'))
+        #plt.imshow(values, cmap=cmap, origin='upper', vmin=vmin, vmax=vmax)
+
+        #values=abi_lat
+        #values[values==0]=np.nan
+        #values=values[frame_slice]
+        abi_lat=abi_lat[frame_slice]
+        abi_lon=abi_lon[frame_slice]
+
+        
+        ax, fig, im =func(values, abi_lat, abi_lon, date,ax, fig, cmap, climits, vmin, vmax)
+        #ax.coastlines()
+
+        ax.text(0.5, 1.01, str(date),transform=ax.transAxes)
+        #cb=plt.colorbar(im,ax=ax)
+        camera.snap()
+    cbar=plt.colorbar(location='bottom', label=units)
+    animation = camera.animate()
+    animation.save('../data/processed/plots/l'+str(Lambda)+var_label+'_overlap.gif')
+    
         
         
 def flow_ds(x,y, flowx, flowy):
@@ -101,7 +137,7 @@ def flow_ds(x,y, flowx, flowy):
           coords=coords)
     return amv_ds
 
-def quiver_loop(prefix, datelist, var, func, cmap, filename, units='K', climits=False, vmin=200,vmax=300):
+def quiver_loop(prefix, datelist, var, func, cmap, filename, frame_slice, Lambda,  units='K', climits=False, vmin=200,vmax=300):
     #fig, ax = plt.subplots(dpi=300)
     fig=plt.figure(dpi=300)
 
@@ -115,7 +151,7 @@ def quiver_loop(prefix, datelist, var, func, cmap, filename, units='K', climits=
         filename=date_string(prefix, date)
         file_id = Dataset(filename)
         abi_lat, abi_lon = ac.calculate_degrees(file_id)
-        amv_file=date.strftime('vis_amv_%Y%m%d%H%M.npy')
+        amv_file=date.strftime('amv_%Y%m%d%H%M.npy')
         flowd=np.load('../data/processed/'+amv_file)
         
         flowx=flowd[:,:,0]
@@ -125,11 +161,11 @@ def quiver_loop(prefix, datelist, var, func, cmap, filename, units='K', climits=
         values=ds[var].values
         #values=abi_lat
         values[values==0]=np.nan
-        values=values[1700:1900, 1500:2500]
-        abi_lat=abi_lat[1700:1900, 1500:2500]
-        abi_lon=abi_lon[1700:1900, 1500:2500]
+        values=values[frame_slice]
+        abi_lat=abi_lat[frame_slice]
+        abi_lon=abi_lon[frame_slice]
         ds_amv=xr.Dataset({'flowx':(['y','x'],flowx),'flowy':(['y','x'],flowy), 'lat':(['y','x'],abi_lat),'lon':(['y','x'],abi_lon)})
-        ds_amv=ds_amv.coarsen(x=20, y=20, boundary='trim').mean(_)
+        ds_amv=ds_amv.coarsen(x=20, y=20, boundary='trim').mean()
         
         ax, fig, im =func(values, abi_lat, abi_lon, date,ax, fig, cmap, climits, vmin, vmax)
         plt.quiver(ds_amv['lon'].values,ds_amv['lat'].values, ds_amv['flowx'].values, ds_amv['flowy'].values, scale=100, color='red')        
@@ -142,7 +178,7 @@ def quiver_loop(prefix, datelist, var, func, cmap, filename, units='K', climits=
     #camera.snap()
     cbar=plt.colorbar(location='bottom', label=units)
     animation = camera.animate()
-    animation.save('../data/processed/test_cbar.gif')
+    animation.save('../data/processed/plots/l'+str(Lambda)+'_quiver.gif')
     
 def date_string(prefix, date):
     d0=datetime(date.year, 1,1)
@@ -159,9 +195,17 @@ def main():
     datelist=pd.date_range(start_date, end_date, freq='10min')
     #datelist = pd.date_range(start=start_date,end=end_date,freq='10m')
     prefix='OR_ABI-L2-ACHTF-M6_G18'
-    quiver_loop(prefix, datelist, 'TEMP', cartopy_pmesh, 'viridis', 'cbar.png', units='K', climits=True)
+    Lambda= 0.15
+    frame_slice=np.index_exp[1700:1900, 1500:2500]
+    var_label='warped_dTEMP'
 
-    #plot_loop(prefix, datelist, 'TEMP', implot, 'viridis', 'cbar.png', units='K', climits=True)
+    overlap_plot_loop( prefix, var_label, datelist, cartopy_pmesh, 'viridis', 'cbar.png', frame_slice, Lambda, units='K',  climits=True, vmin=-1, vmax=2)
+
+    var_label='warped_dthresh'
+    overlap_plot_loop( prefix, var_label, datelist, cartopy_pmesh, 'viridis', 'cbar.png', frame_slice, Lambda, units='K',  climits=True, vmin=-1, vmax=2)
+
+    quiver_loop(prefix, datelist, 'TEMP', cartopy_pmesh, 'viridis', 'cbar.png', frame_slice, Lambda, units='K', climits=True)
+
     #quiver_loop(pr)
 
     #prefix='OR_ABI-L1b-RadF-M6C14_G18'
