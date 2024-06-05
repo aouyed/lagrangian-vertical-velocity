@@ -173,6 +173,8 @@ def flow_calculator(file_path1, file_path2,var,Lambda, frame_slice):
     frame, mask=frame_retreiver(ds2, var)
     frame0=frame0[frame_slice]
     frame=frame[frame_slice]
+    if var=='TEMP':
+        frame[frame>250]=0
     flowd=calc(frame0, frame, Lambda)
    
 
@@ -226,21 +228,21 @@ def main():
     dt=timedelta(minutes=10)
     end_date=end_date-dt
     prefix='OR_ABI-L2-ACHTF-M6_G18'
-    Lambda=0.15
+    Lambda=0.07
     frame_slice=np.index_exp[1700:1900, 1500:2500]
     file_path= date_string(prefix, start_date)
     
     # abi_lat, abi_lon, deltas=metrics(file_path)
-    for date in tqdm(datelist):
+    for date in tqdm(param.calc_datelist()):
         date=date.to_pydatetime()
-        date_plus=date+dt
+        date_plus=date+param.dt
     
-        file_path1= date_string(prefix, date)
-        file_path2=date_string(prefix, date_plus)
-        var='TEMP'
+        file_path1= param.date_string(date)
+        file_path2=param.date_string(date_plus)
+        #var='TEMP'
         flowd=flow_calculator(file_path1,file_path2, var, Lambda, frame_slice)
         
-        np.save('../data/processed/'+'l'+str(Lambda)+'_'+date.strftime('amv_%Y%m%d%H%M.npy'),flowd)
+        np.save('../data/processed/'+'l'+str(Lambda)+'_'+date.strftime('flagged_amv_%Y%m%d%H%M.npy'),flowd)
      
     
 if __name__=='__main__':

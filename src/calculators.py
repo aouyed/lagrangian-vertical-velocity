@@ -15,6 +15,7 @@ from tqdm import tqdm
 import glob
 import matplotlib.pyplot as plt
 import cv2
+from parameters import parameters
 
 def threshold_var(values, marker):
     values[~np.isnan(values)]=marker  
@@ -62,12 +63,13 @@ def threshold_difference(frame1,frame2, date, Lambda):
     tframe2=threshold_var(frame2,2)
     warped_tframe1=warping(tframe1, date, Lambda)
    
-    #df=frame2-frame1
+    df=frame2-frame1
 
     
     tdiff_frame=tframe2-warped_tframe1
 
-    np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('warped_dthresh_%Y%m%d%H%M.npy'),tdiff_frame)
+    np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('flagged_warped_dthresh_%Y%m%d%H%M.npy'),tdiff_frame)
+    np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('flagged_dthresh_%Y%m%d%H%M.npy'),df)
 
 
 
@@ -80,7 +82,7 @@ def warping(frame,date, Lambda):
     if Lambda=='random':
         flowd=np.random.uniform(low=-1,high=1, size=(frame.shape[0],frame.shape[1],2))
     else:
-        flowd=np.load('../data/processed/l'+str(Lambda)+'_'+date.strftime('amv_%Y%m%d%H%M.npy'))
+        flowd=np.load('../data/processed/l'+str(Lambda)+'_'+date.strftime('flagged_amv_%Y%m%d%H%M.npy'))
     
     
     flowx=flowd[:,:,0]
@@ -95,9 +97,9 @@ def main():
   dt=timedelta(minutes=10)
   end_date=end_date-dt
   prefix='OR_ABI-L2-ACHTF-M6_G18'
-  Lambda=0.15
+  Lambda=0.07
   frame_slice=np.index_exp[1700:1900, 1500:2500]
-  
+  param=parameters()
 
 
   
@@ -115,13 +117,16 @@ def main():
       frame2=ds2[var].values
       frame1=frame1[frame_slice]
       frame2=frame2[frame_slice]
+      frame1[frame1>param.temp_thresh]=np.nan
+      frame2[frame2>param.temp_thresh]=np.nan
+
       threshold_difference(frame1,frame2,date, Lambda)
       
       warped_frame1=warping(frame1,date,Lambda)
       warped_df=frame2-warped_frame1
       df=frame2-frame1
-      np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('warped_d'+var+'_%Y%m%d%H%M.npy'),warped_df)
-      np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('d'+var+'_%Y%m%d%H%M.npy'),df)
+      np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('flagged_warped_d'+var+'_%Y%m%d%H%M.npy'),warped_df)
+      np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('flagged_d'+var+'_%Y%m%d%H%M.npy'),df)
 
 
      
