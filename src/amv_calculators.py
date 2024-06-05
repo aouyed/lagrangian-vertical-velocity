@@ -19,7 +19,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from metpy.calc import lat_lon_grid_deltas
 from metpy.calc import advection 
-
+from parameters import parameters
 from netCDF4 import Dataset
 from scipy import ndimage as nd
 import cv2
@@ -157,7 +157,7 @@ def metrics(file_path):
 
 
 
-def flow_calculator(file_path1, file_path2,var,Lambda, frame_slice):
+def flow_calculator(file_path1, file_path2,param):
         
     ds1=xr.open_dataset(file_path1)
     ds2=xr.open_dataset(file_path2)
@@ -169,13 +169,14 @@ def flow_calculator(file_path1, file_path2,var,Lambda, frame_slice):
     
 
     
-    frame0, mask0=frame_retreiver(ds1,var)
-    frame, mask=frame_retreiver(ds2, var)
-    frame0=frame0[frame_slice]
-    frame=frame[frame_slice]
+    frame0, mask0=frame_retreiver(ds1,param.var)
+    frame, mask=frame_retreiver(ds2, param.var)
+    frame0=frame0[param.frame_slice]
+    frame=frame[param.frame_slice]
+    var=param.var
     if var=='TEMP':
-        frame[frame>250]=0
-    flowd=calc(frame0, frame, Lambda)
+        frame[frame> param.temp_thresh]=0
+    flowd=calc(frame0, frame, param.Lambda)
    
 
     
@@ -220,19 +221,9 @@ def warp_ds(ds1, ds_amv):
     frame_warped=warp_flow(frame0.astype(np.float32), flowx, flowy)
     
 
-def main():
+def main(param):
     
-    start_date=datetime(2023,7,1,18,0)
-    end_date=datetime(2023,7,1,23,40)
-    datelist=pd.date_range(start_date, end_date, freq='10min')
-    dt=timedelta(minutes=10)
-    end_date=end_date-dt
-    prefix='OR_ABI-L2-ACHTF-M6_G18'
-    Lambda=0.07
-    frame_slice=np.index_exp[1700:1900, 1500:2500]
-    file_path= date_string(prefix, start_date)
     
-    # abi_lat, abi_lon, deltas=metrics(file_path)
     for date in tqdm(param.calc_datelist()):
         date=date.to_pydatetime()
         date_plus=date+param.dt
@@ -240,11 +231,12 @@ def main():
         file_path1= param.date_string(date)
         file_path2=param.date_string(date_plus)
         #var='TEMP'
-        flowd=flow_calculator(file_path1,file_path2, var, Lambda, frame_slice)
+        flowd=flow_calculator(file_path1,file_path2, param)
         
-        np.save('../data/processed/'+'l'+str(Lambda)+'_'+date.strftime('flagged_amv_%Y%m%d%H%M.npy'),flowd)
+        np.save(param.amv_pathname(date),flowd)
      
     
 if __name__=='__main__':
-    print('hello')
-    main()
+    param=parameters()
+
+    main(param)

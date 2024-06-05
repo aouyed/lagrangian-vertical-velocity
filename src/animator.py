@@ -91,7 +91,7 @@ def overlap_plot_loop(param, func, cmap,  units='K', climits=False, vmin=200,vma
     
 
     camera = Camera(fig)
-    for date in tqdm(param.calc_datelist()[:2]):
+    for date in tqdm(param.calc_datelist()):
         filename=param.date_string(date)
         
         file_id = Dataset(filename)
@@ -138,12 +138,12 @@ def quiver_loop(param, func, cmap,  units='K', climits=False, vmin=200,vmax=300)
     
 
     camera = Camera(fig)
-    for date in tqdm(param.calc_datelist()[:2]):
+    for date in tqdm(param.calc_datelist()):
 
         filename=param.date_string(date)       
         file_id = Dataset(filename)
         abi_lat, abi_lon = ac.calculate_degrees(file_id)
-        flowd=np.load(param.amv_path_name(date))
+        flowd=np.load(param.amv_pathname(date))
         
         flowx=flowd[:,:,0]
         flowy=flowd[:,:,1]
@@ -169,7 +169,7 @@ def quiver_loop(param, func, cmap,  units='K', climits=False, vmin=200,vmax=300)
         camera.snap()
 
     #camera.snap()
-    cbar=plt.colorbar(location='bottom', label=units)
+    #cbar=plt.colorbar(location='bottom', label=units)
     animation = camera.animate()
     animation.save(param.amv_gif_pathname())
     
@@ -178,11 +178,32 @@ def main(param):
  
     #var_plot_loop(param, cartopy_pmesh, 'viridis', units='', climits=True)
     #quiver_loop(param, cartopy_pmesh, 'viridis', units='K', climits=True)
+    param.var_label='flagged_diff_dthresh'
+
     overlap_plot_loop( param, cartopy_pmesh, 'viridis', units='K',  climits=True, vmin=-1, vmax=2)
 
-    # var_label='warped_dthresh'
+    param.var_label='flagged_warped_dthresh'
 
-   # quiver_loop(param, cartopy_pmesh, 'viridis', units='K', climits=True)
+    overlap_plot_loop( param, cartopy_pmesh, 'viridis', units='K',  climits=True, vmin=-1, vmax=2)
+
+    param.var_label='flagged_dthresh'
+     
+    overlap_plot_loop( param, cartopy_pmesh, 'viridis', units='K',  climits=True, vmin=-1, vmax=2)
+    
+    param.var_label='flagged_diff_d'+ param.var
+     
+    overlap_plot_loop( param, cartopy_pmesh, 'RdBu', units='K',  climits=True, vmin=-5, vmax=5)
+    
+    param.var_label='flagged_d'+ param.var
+     
+    overlap_plot_loop( param, cartopy_pmesh, 'RdBu', units='K',  climits=True, vmin=-5, vmax=5)
+    
+    param.var_label='flagged_warped_d'+ param.var
+     
+    overlap_plot_loop( param, cartopy_pmesh, 'RdBu', units='K',  climits=True, vmin=-5, vmax=5)
+    
+
+    quiver_loop(param, cartopy_pmesh, 'viridis', units='K', climits=True)
 
     #quiver_loop(param)
 

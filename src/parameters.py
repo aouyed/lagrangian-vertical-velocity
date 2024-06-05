@@ -15,20 +15,28 @@ import glob
 
 
 class parameters:
-
-  
+    START_Y=1700
+    END_Y=1900
+    START_X=1500
+    END_X=2500
+    
     def __init__(self):
+      
+      
         self.prefix='OR_ABI-L2-ACHTF-M6_G18'
         self.Lambda=0.07
+        self.starty=1700
         self.frame_slice=np.index_exp[1700:1900, 1500:2500]
         self.start_date=datetime(2023,7,1,18,0)
         self.end_date=datetime(2023,7,1,23,40)
-        self.var_label='flagged_dthresh'
+        self.var_label='flagged_overlap_dthresh'
         self.processed_path='../data/processed/'
         self.raw_path='../data/raw/'
         self.temp_thresh=250
         self.var='TEMP'
         self.amv_var_label='flagged_amv'
+        self.dt=timedelta(minutes=10)
+
         
     
     
@@ -48,12 +56,13 @@ class parameters:
         string=self.processed_path+'plots/l'+str(self.Lambda)+'_quiver.gif'
         return string 
     
-    def amv_path_name(self, date):
+    def amv_pathname(self, date):
         
-        amv_file=date.strftime('flagged_amv_%Y%m%d%H%M.npy')
+        amv_file=date.strftime(self.amv_var_label+'_%Y%m%d%H%M.npy')
         string= self.processed_path+'l'+str(self.Lambda)+'_' +amv_file
         return string
-    
+
+ 
     def date_string(self, date):
         d0=datetime(date.year, 1,1)
         delta= date-d0

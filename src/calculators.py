@@ -58,18 +58,26 @@ def quick_plot():
     plt.close()
     
     
-def threshold_difference(frame1,frame2, date, Lambda):
-    tframe1=threshold_var(frame1, 1)
-    tframe2=threshold_var(frame2,2)
-    warped_tframe1=warping(tframe1, date, Lambda)
+def threshold_difference(frame1,frame2, date, param):
+    tframe1=threshold_var(frame1.copy(), 1)
+    tframe2=threshold_var(frame2.copy(),2)
+    warped_tframe1=warping(tframe1, date, param.Lambda)
    
-    df=frame2-frame1
+    df=tframe2-tframe1
 
     
     tdiff_frame=tframe2-warped_tframe1
+    overlap_diff=tdiff_frame-df
+    breakpoint()
 
-    np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('flagged_warped_dthresh_%Y%m%d%H%M.npy'),tdiff_frame)
-    np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('flagged_dthresh_%Y%m%d%H%M.npy'),df)
+  
+    param.var_label='flagged_warped_dthresh'
+    np.save(param.var_pathname(date),tdiff_frame)
+    param.var_label='flagged_dthresh'
+
+    np.save(param.var_pathname(date),df)
+    param.var_label='flagged_diff_dthresh'
+    np.save(param.var_pathname(date),overlap_diff)
 
 
 
@@ -90,47 +98,42 @@ def warping(frame,date, Lambda):
     frame= warp_flow(frame, flowx, flowy)
     return frame
 
-def main():
-  start_date=datetime(2023,7,1,18,0)
-  end_date=datetime(2023,7,1,23,40)
-  datelist=pd.date_range(start_date, end_date, freq='10min')
-  dt=timedelta(minutes=10)
-  end_date=end_date-dt
-  prefix='OR_ABI-L2-ACHTF-M6_G18'
-  Lambda=0.07
-  frame_slice=np.index_exp[1700:1900, 1500:2500]
-  param=parameters()
-
-
+def main(param):
   
   # abi_lat, abi_lon, deltas=metrics(file_path)
-  for date in tqdm(datelist):
+  for date in tqdm(param.calc_datelist()):
       date=date.to_pydatetime()
-      date_plus=date+dt
+      date_plus=date+param.dt
   
-      file_path1= date_string(prefix, date)
-      file_path2=date_string(prefix, date_plus)
-      var='TEMP'
+      file_path1= param.date_string(date)
+      file_path2=param.date_string(date_plus)
       ds1=xr.open_dataset(file_path1)
       ds2=xr.open_dataset(file_path2)
-      frame1=ds1[var].values
-      frame2=ds2[var].values
-      frame1=frame1[frame_slice]
-      frame2=frame2[frame_slice]
+      frame1=ds1[param.var].values
+      frame2=ds2[param.var].values
+      frame1=frame1[param.frame_slice]
+      frame2=frame2[param.frame_slice]
       frame1[frame1>param.temp_thresh]=np.nan
       frame2[frame2>param.temp_thresh]=np.nan
 
-      threshold_difference(frame1,frame2,date, Lambda)
+      threshold_difference(frame1.copy(),frame2.copy(),date, param)
       
-      warped_frame1=warping(frame1,date,Lambda)
+      warped_frame1=warping(frame1,date,param.Lambda)
       warped_df=frame2-warped_frame1
       df=frame2-frame1
-      np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('flagged_warped_d'+var+'_%Y%m%d%H%M.npy'),warped_df)
-      np.save('../data/processed/l'+str(Lambda)+'_'+date.strftime('flagged_d'+var+'_%Y%m%d%H%M.npy'),df)
+      diff_df=warped_df-df
+      param.var_label='flagged_warped_d'+ param.var
+      np.save(param.var_pathname(date),warped_df)
+      param.var_label='flagged_d'+ param.var
+      np.save(param.var_pathname(date),df)
+      param.var_label='flagged_diff_d'+ param.var
+      np.save(param.var_pathname(date),diff_df)
+
 
 
      
 
 if __name__=='__main__':
-    print('hello')
-    main()
+    param=parameters()
+
+    main(param)
