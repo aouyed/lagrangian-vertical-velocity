@@ -48,6 +48,19 @@ def quiver_plot(values, lat_grid, lon_grid, date, ax , fig, cmap, climits, vmin,
 
     return  ax, fig, im
 
+
+def temp_filter(values,date):
+    param_temp=parameters()
+    param_temp.prefix='OR_ABI-L2-ACHTF-M6_G18'
+    param_temp.var='TEMP'
+    filename=param_temp.date_string(date)
+    ds=xr.open_dataset(filename)
+    values_temp=ds[param_temp.var].values
+    values_temp=values_temp[param_temp.frame_slice]
+    values[values_temp>param_temp.temp_thresh]=np.nan
+    return values 
+    
+
     
 
 def var_plot_loop(param, func, cmap,  units='K', climits=False, vmin=200,vmax=300):
@@ -66,7 +79,9 @@ def var_plot_loop(param, func, cmap,  units='K', climits=False, vmin=200,vmax=30
         ds=xr.open_dataset(filename)
         values=ds[param.var].values
         values=values[param.frame_slice]
-        values[values>param.temp_thresh]=np.nan
+        values=temp_filter(values,date)
+        
+       # values[values>param.temp_thresh]=np.nan
 
         abi_lat=abi_lat[param.frame_slice]
         abi_lon=abi_lon[param.frame_slice]
@@ -83,7 +98,61 @@ def var_plot_loop(param, func, cmap,  units='K', climits=False, vmin=200,vmax=30
     
     
 
-def overlap_plot_loop(param, func, cmap,  units='K', climits=False, vmin=200,vmax=300):
+def hist_plot_loop(param, func, cmap, title, units='K', climits=False, vmin=200,vmax=300):
+    #fig, ax = plt.subplots(dpi=300)
+    fig=plt.figure(dpi=300)
+
+    ax = plt.axes(projection=ccrs.PlateCarree())
+    
+
+    camera = Camera(fig)
+    for date in tqdm(param.calc_datelist()):
+        param.var_label='flagged_diff_d'+ param.var
+        diff_df=np.load(param.var_pathname(date))
+        param.var_label='flagged_diff_dthresh'
+        diff_df_thresh=np.load(param.var_pathname(date))
+        param.var_label='flagged_warped_dthresh'
+        warped_dthresh=np.load(param.var_pathname(date))
+        param.var_label='flagged_dthresh'
+        dthresh=np.load(param.var_pathname(date))
+        
+        param.var_label='flagged_d'+ param.var
+        dHT=np.load(param.var_pathname(date))
+        param.var_label='flagged_warped_d'+ param.var
+        
+        dHT_warped=np.load(param.var_pathname(date))
+
+
+        data={'diff_thresh': diff_df_thresh.ravel(), 'diff_df': diff_df.ravel()}
+       
+        df=pd.DataFrame(data)
+        df=df.dropna()
+
+       #plt.scatter(df['diff_thresh'].values, df['diff_df'].values )
+        plt.imshow(diff_df, cmap='viridis')
+        plt.colorbar()
+        plt.show()
+        plt.close()
+        plt.hist(diff_df.ravel())
+        plt.show()
+        plt.close()
+        plt.hist(dHT.ravel())
+        plt.show()
+        plt.close()
+        plt.hist(dHT_warped.ravel())
+        plt.show()
+        plt.close()
+
+        #cb=plt.colorbar(im,ax=ax)
+        camera.snap()
+    cbar=plt.colorbar(location='bottom', label=units)
+    title=title+'_l'+str(param.Lambda)
+    plt.title(title)
+    animation = camera.animate()
+    animation.save(param.overlap_gif_pathname())
+    
+
+def overlap_plot_loop(param, func, cmap, title, units='K', climits=False, vmin=200,vmax=300):
     #fig, ax = plt.subplots(dpi=300)
     fig=plt.figure(dpi=300)
 
@@ -99,7 +168,7 @@ def overlap_plot_loop(param, func, cmap,  units='K', climits=False, vmin=200,vma
         
         print(param.var_pathname(date))
         values=np.load(param.var_pathname(date))
-
+     
         abi_lat=abi_lat[param.frame_slice]
         abi_lon=abi_lon[param.frame_slice]
 
@@ -111,10 +180,12 @@ def overlap_plot_loop(param, func, cmap,  units='K', climits=False, vmin=200,vma
         #cb=plt.colorbar(im,ax=ax)
         camera.snap()
     cbar=plt.colorbar(location='bottom', label=units)
+    title=title+'_l'+str(param.Lambda)
+    plt.title(title)
     animation = camera.animate()
     animation.save(param.overlap_gif_pathname())
     
-        
+    
         
 def flow_ds(x,y, flowx, flowy):
     dims = ('x', 'y')
@@ -176,41 +247,46 @@ def quiver_loop(param, func, cmap,  units='K', climits=False, vmin=200,vmax=300)
 
 def main(param):
  
-    #var_plot_loop(param, cartopy_pmesh, 'viridis', units='', climits=True)
-    #quiver_loop(param, cartopy_pmesh, 'viridis', units='K', climits=True)
-    param.var_label='flagged_diff_dthresh'
+    print('var_plot')
+    
+    var_plot_loop(param, cartopy_pmesh, 'viridis', units='m', climits=True, vmin=250, vmax=12500)
+    # breakpoint()
+    # #quiver_loop(param, cartopy_pmesh, 'viridis', units='K', climits=True)
+    # param.var_label='flagged_diff_dthresh'
 
-    overlap_plot_loop( param, cartopy_pmesh, 'viridis', units='K',  climits=True, vmin=-1, vmax=2)
+    # overlap_plot_loop( param, cartopy_pmesh, 'viridis',  'c1*-c1', units=' ',climits=True, vmin=-1, vmax=2)
 
-    param.var_label='flagged_warped_dthresh'
+    # param.var_label='flagged_warped_dthresh'
 
-    overlap_plot_loop( param, cartopy_pmesh, 'viridis', units='K',  climits=True, vmin=-1, vmax=2)
+    # overlap_plot_loop( param, cartopy_pmesh, 'viridis','c2-c1*', units=' ',  climits=True, vmin=-1, vmax=2)
 
-    param.var_label='flagged_dthresh'
+    # param.var_label='flagged_dthresh'
      
-    overlap_plot_loop( param, cartopy_pmesh, 'viridis', units='K',  climits=True, vmin=-1, vmax=2)
+    # overlap_plot_loop( param, cartopy_pmesh, 'viridis','c2-c1',  units=' ', climits=True, vmin=-1, vmax=2)
     
     param.var_label='flagged_diff_d'+ param.var
      
-    overlap_plot_loop( param, cartopy_pmesh, 'RdBu', units='K',  climits=True, vmin=-5, vmax=5)
+    overlap_plot_loop( param, cartopy_pmesh, 'RdBu',  param.var+'1*-'+param.var+'1',units='m', climits=True, vmin=-1500, vmax=1500)
     
     param.var_label='flagged_d'+ param.var
      
-    overlap_plot_loop( param, cartopy_pmesh, 'RdBu', units='K',  climits=True, vmin=-5, vmax=5)
+    overlap_plot_loop( param, cartopy_pmesh, 'RdBu', param.var+'2-'+param.var+'1' , units='m',climits=True, vmin=-1500, vmax=1500)
     
     param.var_label='flagged_warped_d'+ param.var
      
-    overlap_plot_loop( param, cartopy_pmesh, 'RdBu', units='K',  climits=True, vmin=-5, vmax=5)
+    overlap_plot_loop( param, cartopy_pmesh, 'RdBu', param.var+'2-'+param.var+'1*',units='m',  climits=True, vmin=-1500, vmax=1500)
     
 
-    quiver_loop(param, cartopy_pmesh, 'viridis', units='K', climits=True)
+    # quiver_loop(param, cartopy_pmesh, 'viridis', units='K', climits=True)
 
-    #quiver_loop(param)
+    # #quiver_loop(param)
 
-    #prefix='OR_ABI-L1b-RadF-M6C14_G18'
-    #plot_loop(prefix, datelist, 'Rad', cartopy_pmesh, 'viridis', 'test_rad.png', units='', climits=True)
+    # #prefix='OR_ABI-L1b-RadF-M6C14_G18'
+    # #plot_loop(prefix, datelist, 'Rad', cartopy_pmesh, 'viridis', 'test_rad.png', units='', climits=True)
 
     
 if __name__=='__main__':
     param=parameters()
+    param.prefix='OR_ABI-L2-ACHA2KMF-M6_G18'
+    param.var='HT'
     main(param)
